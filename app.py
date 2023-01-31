@@ -16,9 +16,9 @@ df = pd.read_csv("data/spread.csv")
 
 bank_colors = {  # Dicionario de cores para os principais Bancos
     "BB": "#F9DD16",
-    "ITAU": "#140083",
-    "BRADESCO": "#CC092F",
-    "SANTANDER": "#8B0000",
+    "ITAU": "#FF9641",
+    "BRADESCO": "#633280",
+    "SANTANDER": "#ec0000",
 }
 # Criando o dicionário de substituições
 quarter_replace = {1: "03", 2: "06", 3: "09", 4: "12"}
@@ -32,7 +32,8 @@ df["ANO-TRIMESTRE"] = df.apply(lambda x: str(x["ANO"]) + "-" + x["TRIMESTRE"], a
 # Formatando os valores para o tipo Date
 df["ANO-TRIMESTRE"] = pd.to_datetime(df["ANO-TRIMESTRE"], format="%Y-%m")
 
-# Criando a coluna total resultado (despesas + lucro)
+# Criando a coluna total
+
 df["TOTAL_OP"] = df.apply(lambda x: int(x["RESULT_OP"]) + x["DESPESA_OP"], axis=1)
 df["TOTAL_N"] = df.apply(lambda x: int(x["NUMERO_OP"]) + x["NUMERO_INTERBANK"], axis=1)
 years = df["ANO"].unique()  # Anos unicos para o filtro
@@ -47,7 +48,7 @@ app.layout = html.Div(
     [
         html.Div(  # Div dos Dropdowns
             [
-                html.H1("Dashboard Test", className="title"), # Titulo
+                html.H1("Dashboard Test", className="title"),  # Titulo
                 html.Label("Ano", className="dropdown-labels"),
                 dcc.Dropdown(  # Filtro do Ano, retornando os 4 trimestres como padrão
                     id="year-dropdown",
@@ -168,7 +169,7 @@ def update_lineplot(filtered_df):
                 family="Arial",  # Familia da fonte
             ),
             x=0.46,  # Posição no eixo X
-            y=.95,  # Posição no eixo y
+            y=0.95,  # Posição no eixo y
         ),
         xaxis=dict(  # Valor em X
             title=dict(
@@ -265,7 +266,7 @@ def update_pieplot(filtered_df):
                 ),
             ),
         ),
-        transition = dict(duration = 1500),  # Tempo de transição na atulização do gráfico
+        transition=dict(duration=1500),  # Tempo de transição na atulização do gráfico
     )
     return fig
 
