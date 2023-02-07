@@ -60,6 +60,7 @@ body {
   background-color: white;
   box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
+
 .spreadlineplot-container {
   width: 100%;
   max-width: 84.375rem;
@@ -119,7 +120,7 @@ body {
 }
 
 .dropdown {
-  
+
   width: 90%;
   max-width: 27.5rem;
   margin-right: 0.625rem;
@@ -127,7 +128,7 @@ body {
   cursor: pointer;
   color: black;
   background-color: transparent;
-  
+
 }
 
 .dropdown-container {
@@ -143,9 +144,10 @@ body {
   box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
 
-.dropdown .Select-input>input{
+.dropdown .Select-input>input {
   line-height: 14px;
 }
+
 .dropdown .Select-control {
 
   color: black;
