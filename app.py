@@ -1,6 +1,7 @@
 # Importação das bibliotecas utilizadas
 from dash import dcc, html, Input, Output, Dash
 import dash_bootstrap_components as dbc
+import dash
 import plotly.express as px
 import pandas as pd
 import numpy as np
@@ -13,8 +14,6 @@ A estrutura do painel é criada usando o dash e inclui três seleções dropdown
 e banco desejado, e um gráfico para exibir os resultados das operações. O gráfico é atualizado dinamicamente
 com base nas opções de filtro selecionadas, usando o callback.
 """
-# Carregando o arquivo CSV para um dataframe
-df = pd.read_csv("data/spread.csv")
 
 bank_colors = {  # Dicionario de cores para os principais Bancos
     "BB": "#F9DD16",
@@ -24,35 +23,51 @@ bank_colors = {  # Dicionario de cores para os principais Bancos
     "Outros": "gray",
     "MERCADO": '#005daa'
 }
-# Criando o dicionário de substituições
-quarter_replace = {1: "03", 2: "06", 3: "09", 4: "12"}
 
-# aplicando a substituição na coluna TRIMESTRE
-df["TRIMESTRE"] = df["TRIMESTRE"].replace(quarter_replace)
+# Carregando e Modificando o arquivo CSV em um DataFrame
 
-# 'Somando' o Ano - Trimestre para uma unica coluna
-df["ANO-TRIMESTRE"] = df["ANO"].astype(str) + "-" + df["TRIMESTRE"]
 
-# Formatando os valores para o tipo Date
-df["ANO-TRIMESTRE"] = pd.to_datetime(df["ANO-TRIMESTRE"], format="%Y-%m")
+def read_csv(csv_file_path):
+    ''' Carrega um dataFrame e faz alterações nas colunas'''
+    df = pd.read_csv(csv_file_path)
 
-# Criando a coluna total
-df["TOTAL_OP"] = df["RESULT_OP"] + df["DESPESA_OP"]
-df["TOTAL_N"] = df["NUMERO_OP"] + df["NUMERO_INTERBANK"]
+    # Criando o dicionário de substituições
+    quarter_replace = {1: "03", 2: "06", 3: "09", 4: "12"}
 
-# Criando a coluna de spread
-df["SPREAD"] = (df["VOLUME_OP"] + df["VOLUME_INTERBANK"]) / \
-    (df["RESULT_OP"] + df["DESPESA_OP"]) / 100
+    # aplicando a substituição na coluna TRIMESTRE
+    df["TRIMESTRE"] = df["TRIMESTRE"].replace(quarter_replace)
 
-# Limitando a duas casas após a virgula
-df["SPREAD"] = df["SPREAD"].round(decimals=2)
+    # 'Somando' o Ano - Trimestre para uma unica coluna
+    df["ANO-TRIMESTRE"] = df["ANO"].astype(str) + "-" + df["TRIMESTRE"]
+
+    # Formatando os valores para o tipo Date
+    df["ANO-TRIMESTRE"] = pd.to_datetime(df["ANO-TRIMESTRE"], format="%Y-%m")
+
+    # Criando a coluna total
+    df["TOTAL_OP"] = df["RESULT_OP"] + df["DESPESA_OP"]
+    df["TOTAL_N"] = df["NUMERO_OP"] + df["NUMERO_INTERBANK"]
+
+    # Criando a coluna de spread
+    df["SPREAD"] = (df["VOLUME_OP"] + df["VOLUME_INTERBANK"]) / \
+        (df["RESULT_OP"] + df["DESPESA_OP"]) / 100
+
+    # Limitando a duas casas após a virgula
+    df["SPREAD"] = df["SPREAD"].round(decimals=2)
+
+    return df
+
+
+df = read_csv("data/spread.csv")
 
 years = df["ANO"].unique()  # Anos unicos para o filtro
 banks = df["NOME_BANCO"].unique()  # Bancos unicos para o filtro
 quarters = df["TRIMESTRE"].unique()  # Trimestres unicos para o filtro
 
 # Criando a aplicação Dash
-app = Dash(__name__)
+app = Dash(__name__,
+           title="Movimentação de Câmbio",
+           update_title=None)
+
 
 # Criando o Layout para o Dashboard
 app.layout = html.Div([
@@ -126,16 +141,30 @@ app.layout = html.Div([
         className='left-container'),
     html.Div(
         [  # Div dos Graficos
-
+            html.Div(  # Div dos botoes
+                [html.Button('Trimestral',
+                             id='trimestral-button',
+                             n_clicks=0,
+                             className='button'
+                             ),
+                 html.Button('Por ano',
+                             id='ano-button',
+                             n_clicks=0,
+                             className='button'
+                             )
+                 ],
+                className='button-container'),
+            html.Div(  # Gráfico de Barras numero de operações
+                [
+                    dcc.Graph(id="bar-lineplot",
+                              className="bar-lineplot"),
+                ],
+                className="bar-lineplot-container",
+            ),
             html.Div(  # Gráfico de Linha Spread
                 [dcc.Graph(id="spread-lineplot",
                            className="spreadlineplot")],
                 className="spreadlineplot-container",
-            ),
-            html.Div(  # Gráfico de Barras numero de operações
-                [dcc.Graph(id="bar-lineplot",
-                           className="bar-lineplot")],
-                className="bar-lineplot-container",
             ),
             html.Div(  # Grafico de Linha Resultados
                 [dcc.Graph(id="operations-result-lineplot",
@@ -151,9 +180,7 @@ app.layout = html.Div([
 
 
 def filter_data(selected_year, selected_quarter, selected_bank, df=df):
-    """
-    Função de filtrar quais valores selecionados do dataframe
-    """
+    '''Função de filtrar quais valores selecionados do dataframe'''
     if not isinstance(selected_year, list):
         selected_year = [selected_year]
     if not isinstance(selected_quarter, list):
@@ -180,9 +207,7 @@ def filter_data(selected_year, selected_quarter, selected_bank, df=df):
 
 
 def update_lineplot(filtered_df):
-    """
-    Função que cria um lineplot com os filtros selecionados
-    """
+    '''Função que cria um lineplot com os filtros selecionados'''
 
     fig = px.line(  # Criando a figura de Visualização
         filtered_df,  # Dataframe filtrado pelo dropdown
@@ -267,7 +292,7 @@ def update_lineplot(filtered_df):
 
 
 def update_pieplot(filtered_df):
-
+    ''' Cria um PiePlot utilizando os dados filtrados '''
     # Soma de todas as operações dos bancos filtrado
     total = filtered_df["TOTAL_N"].sum()
     # Somando todas as operações dos bancos filtrados
@@ -352,9 +377,7 @@ def update_pieplot(filtered_df):
 
 
 def update_spread_lineplot(filtered_df):
-    """
-    Função que cria um lineplot do spread com os filtros selecionados
-    """
+    '''Função que cria um lineplot do spread com os filtros selecionados'''
 
     fig = px.line(  # Criando a figura de Visualização
         filtered_df,  # Dataframe filtrado pelo dropdown
@@ -443,10 +466,8 @@ def update_spread_lineplot(filtered_df):
     return fig
 
 
-def update_bar_lineplot(filtered_df):
-    """
-    Função que cria um lineplot do spread com os filtros selecionados
-    """
+def create_barplot(filtered_df):
+    ''' Cria um barplot dos valores trimestrais ou anuais usando os filtros '''
 
     bb = filtered_df[filtered_df['NOME_BANCO']
                      == 'BB']  # Linhas onde o banco é o BB
@@ -461,136 +482,202 @@ def update_bar_lineplot(filtered_df):
     final_df.loc[final_df['NOME_BANCO'] == 'BB', 'PORCENTAGEM']\
         = (final_df[final_df['NOME_BANCO'] == 'BB']['TOTAL_N'] / total) * 1000
 
-    fig = px.bar(  # Criando a figura de Visualização
-        final_df,  # Dataframe filtrado pelo dropdown
-        x="ANO-TRIMESTRE",  # Valor em X
-        y="TOTAL_N",  # Valor em y
-        color="NOME_BANCO",
-        barmode="group",  # Por qual coluna haverá diferenciação de cores
-        labels={  # Nome das colunas na legenda
-            "ANO-TRIMESTRE": "Ano e Trimestre",
-            "TOTAL_N": "Numero de Operações",
-        },
-        custom_data=['NOME_BANCO'],
-        text="TOTAL_N",
-        title="Operações do BB relativo ao Mercado",  # Titulo
-        # Marcação nos pontos no gráfico
-        color_discrete_map=bank_colors,  # Paleta de cores pré-definidas para cada Banco
-    )
-    fig.update_traces(
-        hovertemplate="<br>".join([
-            "Instituição: %{customdata[0]}",
-            "Ano e Trimestre: %{x}",
-            "Numero de Operações: %{y:.2f} Mil ",
+    def acumulado_ano(df):
+        # Adicionar coluna ANO ao DataFrame df
 
-        ]),
-        texttemplate="%{y:.2f} Mil",
-        textfont=dict(
-            family="BancoDoBrasil Textos",
-            color='white'
+        df['ANO'] = pd.to_datetime(df['ANO-TRIMESTRE'], format='%Y-%m').dt.year
+
+        # Criar duas variáveis bb_total e market_total
+        bb_total = df[df['NOME_BANCO'] == 'BB'].groupby(
+            'ANO').agg({'TOTAL_N': 'sum'})
+        market_total = df[df['NOME_BANCO'] == 'MERCADO'].groupby(
+            'ANO').agg({'TOTAL_N': 'sum'})
+
+        # Criar dois novos DataFrames bb_total_df e market_total_df
+        bb_total_df = bb_total.reset_index().rename(
+            columns={'TOTAL_N': 'TOTAL_N'}).assign(NOME_BANCO='BB')
+        market_total_df = market_total.reset_index().rename(
+            columns={'TOTAL_N': 'TOTAL_N'}).assign(NOME_BANCO='MERCADO')
+
+        # Concatenar os dois novos DataFrames em um único DataFrame total_df
+        total_df = pd.concat([bb_total_df, market_total_df])
+        # O quanto teve a cada ano
+        total_acumulado = total_df.groupby(
+            'ANO')['TOTAL_N'].sum().reset_index()
+        # Quanto BB representa do Total de cada ano
+        total_df.loc[total_df['NOME_BANCO'] == 'BB', 'PORCENTAGEM']\
+            = (total_df[total_df['NOME_BANCO'] == 'BB']['TOTAL_N'] / total_acumulado['TOTAL_N']) * 100
+
+        # Convertando para Datetime type
+        total_df['ANO'] = pd.to_datetime(total_df['ANO'], format="%Y")
+
+        return total_df
+
+    def fig(df, periodo):
+        fig = px.bar(  # Criando a figura de Visualização
+            df,  # Dataframe filtrado pelo dropdown
+            x=periodo,  # Valor em X
+            y="TOTAL_N",  # Valor em y
+            color="NOME_BANCO",
+            barmode="group",  # Por qual coluna haverá diferenciação de cores
+            labels={  # Nome das colunas na legenda
+                periodo: "Ano e Trimestre",
+                "TOTAL_N": "Numero de Operações",
+            },
+            custom_data=['NOME_BANCO'],
+            text="TOTAL_N",
+            title="Operações do BB relativo ao Mercado",  # Titulo
+            # Marcação nos pontos no gráfico
+            color_discrete_map=bank_colors,  # Paleta de cores pré-definidas para cada Banco
         )
-    )
+        fig.update_traces(
+            hovertemplate="<br>".join([
+                "Instituição: %{customdata[0]}",
+                "Ano e Trimestre: %{x}",
+                "Numero de Operações: %{y:.2f} Mil ",
 
-    fig.update_yaxes(secondary_y=False,
-                     title_text='Resultado das Operações (em milhões)')
-
-    fig.add_trace(
-        go.Scatter(
-            x=final_df['ANO-TRIMESTRE'], y=final_df['PORCENTAGEM'],
-            mode='lines+markers+text', line_width=1.8, line_color='#a1b2da', name='Relação BB em %',
-            yaxis='y2', texttemplate="%{y:.2f}%", hovertemplate="<br>".join(["Participação do BB: %{y:.2f}%", "Ano e Trimestre: %{x}"]), textfont=dict(
+            ]),
+            texttemplate="%{y:.2f} Mil",
+            textfont=dict(
                 family="BancoDoBrasil Textos",
-                color='#8694B5'
-            ), textposition='top left'
+                color='white'
+            )
+        )
 
-        ))
+        fig.update_yaxes(secondary_y=False,
+                         title_text='Resultado das Operações (em milhões)')
 
-    fig.update_yaxes(title_text='Relação BB em %', secondary_y=True, title=dict(
-        font=dict(
-            size=16,  # Tamanho da fonte
-            color="#0D214F",  # Cor da fonte
-            family="BancoDoBrasil Textos",  # Familia da fonte
-        ),
-    ),)
+        fig.add_trace(
+            go.Scatter(
+                x=df[periodo], y=df['PORCENTAGEM'],
+                mode='lines+markers+text',
+                line_width=1.8,
+                line_color='#a1b2da',
+                name='Relação BB em %',
+                yaxis='y2',
+                texttemplate="%{y:.2f}%",
+                hovertemplate="<br>".join(
+                    ["Participação do BB: %{y:.2f}%", "Ano e Trimestre: %{x}"]),
+                textfont=dict(
+                    family="BancoDoBrasil Textos",
+                    color='#8694B5'
+                ), textposition='top left'
 
-  # Atualizando o traço do LinePlot
+            ))
 
-    fig.update_layout(  # Estilizando a Visualização
-        height=480,
-        paper_bgcolor="white",
-        # Cor em volta do Plot
-        # plot_bgcolor="#0D214F", # Cor no fundo do Plot
-        title=dict(  # Titulo
+        fig.update_yaxes(title_text='Relação BB em %', secondary_y=True, title=dict(
             font=dict(
-                size=20,  # Tamanho da fonte
+                size=16,  # Tamanho da fonte
                 color="#0D214F",  # Cor da fonte
                 family="BancoDoBrasil Textos",  # Familia da fonte
             ),
-            x=0.5,  # Posição no eixo X
-            y=0.95,  # Posição no eixo y
-        ),
-        xaxis=dict(  # Valor em X
-            title=dict(
-                font=dict(
-                    size=16,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="BancoDoBrasil Textos",  # Familia da fonte
-                ),
-            )
-        ),
-        yaxis=dict(
-            title=dict(
-                font=dict(
-                    size=16,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="BancoDoBrasil Textos",  # Familia da fonte
-                ),
-            )
-        ),
-        yaxis2=dict(
-            title="Relação BB em %",
-            title_font=dict(size=16,  # Tamanho da fonte
-                            color="#0D214F",  # Cor da fonte
-                            family="BancoDoBrasil Textos",),
-            type='linear',
-            linewidth=2,
-            overlaying='y',
-            side='right',
-            range=[0, 50],
+        ),)
 
-        ),
-        legend=dict(
-            bgcolor="rgba(0,0,0,0)",
-            yanchor="top",
-            y=0.99,
-            xanchor="left",
-            x=1,
-            font=dict(  # Fonte da Legenda
-                size=11,  # Tamanho da fonte
-                color="#0D214F",  # Cor da fonte
-                family="BancoDoBrasil Textos",  # Familia da fonte
-            ),
-            title=dict(  # Titulo da Legenda
-                text="RELAÇÃO",  # String
-                font=dict(  # Fonte do Titulo da Leganda
-                    size=13,  # Tamanho da fonte
+    # Atualizando o traço do LinePlot
+
+        fig.update_layout(  # Estilizando a Visualização
+            height=480,
+            paper_bgcolor="white",
+            # Cor em volta do Plot
+            # plot_bgcolor="#0D214F", # Cor no fundo do Plot
+            title=dict(  # Titulo
+                font=dict(
+                    size=20,  # Tamanho da fonte
                     color="#0D214F",  # Cor da fonte
                     family="BancoDoBrasil Textos",  # Familia da fonte
                 ),
+                x=0.5,  # Posição no eixo X
+                y=0.95,  # Posição no eixo y
             ),
-        ),
-        margin=dict(l=1, r=90, t=50, b=5),
-        transition_duration=1500,  # Tempo de transição na atulização do gráfico
-    )
-    return fig
+            xaxis=dict(  # Valor em X
+                title=dict(
+                    font=dict(
+                        size=16,  # Tamanho da fonte
+                        color="#0D214F",  # Cor da fonte
+                        family="BancoDoBrasil Textos",  # Familia da fonte
+                    ),
+                )
+            ),
+            yaxis=dict(
+                title=dict(
+                    font=dict(
+                        size=16,  # Tamanho da fonte
+                        color="#0D214F",  # Cor da fonte
+                        family="BancoDoBrasil Textos",  # Familia da fonte
+                    ),
+                )
+            ),
+            yaxis2=dict(
+                title="Relação BB em %",
+                title_font=dict(size=16,  # Tamanho da fonte
+                                color="#0D214F",  # Cor da fonte
+                                family="BancoDoBrasil Textos",),
+                type='linear',
+                linewidth=2,
+                overlaying='y',
+                side='right',
+                range=[0, 45],
+
+            ),
+            legend=dict(
+                bgcolor="rgba(0,0,0,0)",
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=1,
+                font=dict(  # Fonte da Legenda
+                    size=11,  # Tamanho da fonte
+                    color="#0D214F",  # Cor da fonte
+                    family="BancoDoBrasil Textos",  # Familia da fonte
+                ),
+                title=dict(  # Titulo da Legenda
+                    text="RELAÇÃO",  # String
+                    font=dict(  # Fonte do Titulo da Leganda
+                        size=13,  # Tamanho da fonte
+                        color="#0D214F",  # Cor da fonte
+                        family="BancoDoBrasil Textos",  # Familia da fonte
+                    ),
+                ),
+            ),
+            margin=dict(l=1, r=90, t=50, b=5),
+            transition_duration=1000,  # Tempo de transição na atulização do gráfico
+        )
+        return fig
+
+    total_df = acumulado_ano(final_df)
+
+    fig1 = fig(final_df, 'ANO-TRIMESTRE')
+    fig2 = fig(total_df, 'ANO')
+
+    return fig1, fig2
+
+
+@app.callback(
+    Output(component_id='bar-lineplot', component_property='figure'),
+    [Input("year-dropdown", "value"),
+     Input("quarter-dropdown", "value"),
+     Input("bank-dropdown", "value"),
+     Input(component_id='trimestral-button', component_property='n_clicks'),
+     Input(component_id='ano-button', component_property='n_clicks')])
+def update_barplot(selected_year, selected_quarter, selected_bank, trimestral_clicks, ano_clicks):
+    ''' Função que retorna Anual ou Trimestral dependendo de qual botão for clicado '''
+
+    filtered_df = filter_data(selected_year, selected_quarter, selected_bank)
+    fig1, fig2 = create_barplot(filtered_df)
+
+    ctx = dash.callback_context
+    if ctx.triggered[0]['prop_id'] == 'trimestral-button.n_clicks':
+        return fig1
+    elif ctx.triggered[0]['prop_id'] == 'ano-button.n_clicks':
+        return fig2
+    return fig1
 
 
 @ app.callback(
     [
-     Output("operations-result-pieplot", "figure"),
-     Output("spread-lineplot", "figure"),
-     Output('bar-lineplot', 'figure'),
-     Output("operations-result-lineplot", "figure"),],
+        Output("operations-result-pieplot", "figure"),
+        Output("spread-lineplot", "figure"),
+        Output("operations-result-lineplot", "figure"),],
     [  # Parametros de inputs (Ano, Trimestre e Banco)
         Input("year-dropdown", "value"),
         Input("quarter-dropdown", "value"),
@@ -598,16 +685,14 @@ def update_bar_lineplot(filtered_df):
     ],
 )
 def update_plots(selected_year, selected_quarter, selected_bank):
-    """
-    Atualiza os valores para os gráficos
-    """
-    filtered_df = filter_data(selected_year, selected_quarter, selected_bank)
+    ''' Atualiza os gráficos baseados nos filtros escolhidos no dropdown '''
 
+    filtered_df = filter_data(selected_year, selected_quarter, selected_bank)
     line_plot = update_lineplot(filtered_df)
     pie_plot = update_pieplot(filtered_df)
     spread_line_plot = update_spread_lineplot(filtered_df)
-    bar_lineplot = update_bar_lineplot(filtered_df)
-    return  pie_plot,bar_lineplot, spread_line_plot, line_plot
+
+    return pie_plot,  spread_line_plot, line_plot
     # Retorna a figura
 
 
