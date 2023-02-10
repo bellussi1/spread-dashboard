@@ -1,0 +1,39 @@
+@font-face {
+    font-family: 'BancoDoBrasil Textos';
+    src: url('BancoDoBrasilTextos-Bold.eot');
+    src: local('BancoDoBrasil Textos Bold'), local('BancoDoBrasilTextos-Bold'),
+        url('BancoDoBrasilTextos-Bold.eot?#iefix') format('embedded-opentype'),
+        url('BancoDoBrasilTextos-Bold.woff2') format('woff2'),
+        url('BancoDoBrasilTextos-Bold.woff') format('woff'),
+        url('BancoDoBrasilTextos-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'BancoDoBrasil Textos';
+    src: url('BancoDoBrasilTextos-Regular.eot');
+    src: local('BancoDoBrasil Textos Regular'), local('BancoDoBrasilTextos-Regular'),
+        url('BancoDoBrasilTextos-Regular.eot?#iefix') format('embedded-opentype'),
+        url('BancoDoBrasilTextos-Regular.woff2') format('woff2'),
+        url('BancoDoBrasilTextos-Regular.woff') format('woff'),
+        url('BancoDoBrasilTextos-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'BancoDoBrasil Textos';
+    src: url('BancoDoBrasilTextos-Medium.eot');
+    src: local('BancoDoBrasil Textos Medium'), local('BancoDoBrasilTextos-Medium'),
+        url('BancoDoBrasilTextos-Medium.eot?#iefix') format('embedded-opentype'),
+        url('BancoDoBrasilTextos-Medium.woff2') format('woff2'),
+        url('BancoDoBrasilTextos-Medium.woff') format('woff'),
+        url('BancoDoBrasilTextos-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
