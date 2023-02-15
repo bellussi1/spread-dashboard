@@ -1,20 +1,9 @@
 # Importação das bibliotecas utilizadas
-from dash import dcc, html, Input, Output, Dash
-import dash_bootstrap_components as dbc
+from dash import dcc, html, Input, Output, Dash, dash_table
 import dash
 import plotly.express as px
 import pandas as pd
-import numpy as np
 import plotly.graph_objs as go
-
-"""
-Este código é um aplicativo Dash que cria um painel de operações bancárias.
-Ele carrega os dados de um arquivo CSV e os armazena em um dataframe do pandas.
-Ele cria uma lista única de anos, bancos e trimestres para as opções de filtro.
-A estrutura do painel é criada usando o dash e inclui três seleções dropdown para selecionar o ano, trimestre
-e banco desejado, e um gráfico para exibir os resultados das operações. O gráfico é atualizado dinamicamente
-com base nas opções de filtro selecionadas, usando o callback.
-"""
 
 bank_colors = {  # Dicionario de cores para os principais Bancos
     "BB": "#F9DD16",
@@ -26,49 +15,94 @@ bank_colors = {  # Dicionario de cores para os principais Bancos
 }
 
 # Carregando e Modificando o arquivo CSV em um DataFrame
-
-
 def read_csv(csv_file_path):
-    """Carrega um dataFrame e faz alterações nas colunas"""
+    """
+    Carrega um dataFrame e faz alterações nas colunas
+    """
+    # Carrega o dataframe a partir do arquivo CSV
     df = pd.read_csv(csv_file_path)
 
-    # Criando o dicionário de substituições
+    # Cria o dicionário de substituições para o trimestre
     quarter_replace = {1: "03", 2: "06", 3: "09", 4: "12"}
 
-    # aplicando a substituição na coluna TRIMESTRE
+    # Aplica a substituição na coluna de trimestre
     df["TRIMESTRE"] = df["TRIMESTRE"].replace(quarter_replace)
 
-    # 'Somando' o Ano - Trimestre para uma unica coluna
+    # Concatena o ano e o trimestre em uma coluna
     df["ANO-TRIMESTRE"] = df["ANO"].astype(str) + "-" + df["TRIMESTRE"]
 
-    # Formatando os valores para o tipo Date
+    # Formata os valores da coluna ANO-TRIMESTRE para o tipo Date
     df["ANO-TRIMESTRE"] = pd.to_datetime(df["ANO-TRIMESTRE"], format="%Y-%m")
 
-    # Criando a coluna total
+    # Cria a coluna TOTAL_OP com a soma dos valores de RESULT_OP e DESPESA_OP
     df["TOTAL_OP"] = df["RESULT_OP"] + df["DESPESA_OP"]
+
+    # Cria a coluna TOTAL_N com a soma dos valores de NUMERO_OP e NUMERO_INTERBANK
     df["TOTAL_N"] = df["NUMERO_OP"] + df["NUMERO_INTERBANK"]
 
-    # Criando a coluna de spread
-    df["SPREAD"] = (
-        (df["VOLUME_OP"] + df["VOLUME_INTERBANK"])
-        / (df["RESULT_OP"] + df["DESPESA_OP"])
-        / 100
-    )
-
-    # Limitando a duas casas após a virgula
+    # Cria a coluna SPREAD com a relação entre a soma dos volumes de operações e
+    # a soma dos resultados e despesas das operações, arredondado para duas casas decimais
+    df["SPREAD"] = (df["VOLUME_OP"] + df["VOLUME_INTERBANK"]) / \
+        (df["RESULT_OP"] + df["DESPESA_OP"]) / 100
     df["SPREAD"] = df["SPREAD"].round(decimals=2)
 
     return df
 
 
+# Carregar o arquivo csv chamado "spread.csv" na variável df
 df = read_csv("data/spread.csv")
 
 years = df["ANO"].unique()  # Anos unicos para o filtro
 banks = df["NOME_BANCO"].unique()  # Bancos unicos para o filtro
 quarters = df["TRIMESTRE"].unique()  # Trimestres unicos para o filtro
 
-# Criando a aplicação Dash
-app = Dash(__name__, title="Movimentação de Câmbio", update_title=None)
+app = Dash(__name__,
+           title="Movimentação de Câmbio",
+           update_title=None)
+
+# Armazena as colunas relevantes do dataframe df em uma nova variável 'table'
+table = df[['NOME_BANCO', 'ANO', 'TRIMESTRE', 'NUMERO_OP', 'VOLUME_OP',
+            'NUMERO_INTERBANK', 'VOLUME_INTERBANK', 'RESULT_OP', 'DESPESA_OP']]
+
+# Cria uma lista 'cols' com dicionários, onde cada dicionário tem as chaves "name" e "id", 
+# relacionando o nome de cada coluna com sua identificação
+cols = [{"name": i, "id": i} for i in table.columns]
+
+# Sobrescreve 'cols' com uma nova lista, agora especificando o nome que cada coluna deve ter na exibição
+cols = [{"name": "Banco", "id": "NOME_BANCO"},
+        {"name": "Ano", "id": "ANO"},
+        {"name": "Trim.", "id": "TRIMESTRE"},
+        {"name": "Nº Op.", "id": "NUMERO_OP"},
+        {"name": "Vol. Op.", "id": "VOLUME_OP"},
+        {"name": "Nº Op. Inter", "id": "NUMERO_INTERBANK"},
+        {"name": "Vol. Op. Inter", "id": "VOLUME_INTERBANK"},
+        {"name": "Result. Op.", "id": "RESULT_OP"},
+        {"name": "Desp. Op.", "id": "DESPESA_OP"}]
+
+# Definindo estilo para a tabela como um todo
+table_style = {
+    'font-size': '14px',  # tamanho da fonte
+    'text-align': 'center',  # alinhamento centralizado dos dados na tabela
+    'margin-left': 'auto',  # alinhamento centralizado horizontalmente
+    'margin-right': 'auto',  # alinhamento centralizado horizontalmente
+    'table-layout': 'fixed',  # layout fixo da tabela
+    'font-family': 'BancoDoBrasil Textos'
+}
+
+# Definindo estilo para o cabeçalho da tabela
+header_style = {
+    'background-color': 'rgb(230, 230, 230)',  # cor de fundo dos cabeçalhos
+    'font-weight': 'bold',  # negrito para os cabeçalhos
+    'text-align': 'center',  # alinhamento à esquerda dos nomes das colunas
+    'font-family': 'BancoDoBrasil Textos'
+}
+
+# Definindo estilo para as células da tabela
+cell_style = {
+    'text-align': 'center',  # alinhamento centralizado dos valores
+    'min-width': '75px',  # tamanho mínimo das células
+    'font-family': 'BancoDoBrasil Textos',
+}
 
 # Criando o Layout para o Dashboard
 app.layout = html.Div(
@@ -84,15 +118,17 @@ app.layout = html.Div(
             ],
             className="layout",
         ),
-        html.Div(
+        html.Div(  # Div esquerdo
             [
-                html.Div(
-                    [  # Div dos Dropdowns
+                html.Div(  # Div dos Dropdowns
+                    [
                         html.Br(),
                         html.H2(  # Titulo
-                            "Selecione o filtro desejado", className="title-dropdown"
+                            "Selecione o filtro desejado",
+                            className="title-dropdown"
                         ),
-                        html.Label("Ano", className="dropdown-labels"),
+                        html.Label("Ano",
+                                   className="dropdown-labels"),
                         dcc.Dropdown(  # Filtro do Ano, retornando os 4 trimestres como padrão
                             id="year-dropdown",
                             options=[  # Valores unicos a filtrar
@@ -104,7 +140,8 @@ app.layout = html.Div(
                             optionHeight=50,  # Altura das opções (Estetica)
                         ),
                         # Nome acima do dropdown
-                        html.Label("Trimestre", className="dropdown-labels"),
+                        html.Label("Trimestre",
+                                   className="dropdown-labels"),
                         dcc.Dropdown(  # Filtro do Trimestre, retornando os 4 trimestres como padrão
                             id="quarter-dropdown",
                             options=[  # Valores unicos a filtrar
@@ -117,7 +154,8 @@ app.layout = html.Div(
                             optionHeight=50,  # Altura das opções (Estetica)
                         ),
                         html.Label(
-                            "Instituição Bancária", className="dropdown-labels"
+                            "Instituição Bancária",
+                            className="dropdown-labels"
                         ),  # Nome acima do dropdown
                         dcc.Dropdown(  # Filtro do Banco, retornando os 4 principais como padrão
                             id="bank-dropdown",
@@ -142,11 +180,27 @@ app.layout = html.Div(
                                className="pieplot")],
                     className="pieplot-container",
                 ),
+                html.Div(
+                    [dash_table.DataTable(id='table',
+                                          columns=cols,
+                                          data=table.to_dict("records"),
+                                          style_data=cell_style,
+                                          style_cell={
+                                              'textAlign': 'center'
+                                          },
+                                          style_header=header_style,
+                                          style_table=table_style,
+                                          sort_action="native",
+                                          sort_mode="multi",
+                                          page_size=14
+                                          )],
+                    className='table'
+                ),
             ],
             className="left-container",
         ),
-        html.Div(
-            [  # Div dos Graficos
+        html.Div(  # Div dos Graficos
+            [
                 html.Div(  # Div dos botoes
                     [
                         html.Button(
@@ -156,14 +210,18 @@ app.layout = html.Div(
                             className="button",
                         ),
                         html.Button(
-                            "Por ano", id="ano-button", n_clicks=0, className="button"
+                            "Por ano",
+                            id="ano-button",
+                            n_clicks=0,
+                            className="button"
                         ),
                     ],
                     className="button-container",
                 ),
                 html.Div(  # Gráfico de Barras numero de operações
                     [
-                        dcc.Graph(id="bar-lineplot", className="bar-lineplot"),
+                        dcc.Graph(id="bar-lineplot",
+                                  className="bar-lineplot"),
                     ],
                     className="bar-lineplot-container",
                 ),
@@ -210,6 +268,21 @@ def filter_data(selected_year, selected_quarter, selected_bank, df=df):
         )
 
     return filtered_df
+
+
+@app.callback(
+    Output('table', 'data'),
+    [  # Parametros de inputs (Ano, Trimestre e Banco)
+        Input("year-dropdown", "value"),
+        Input("quarter-dropdown", "value"),
+        Input("bank-dropdown", "value"),
+    ],
+)
+def update_table(selected_year, selected_quarter, selected_bank):
+    """Atualiza os gráficos baseados nos filtros escolhidos no dropdown"""
+    filtered_df = filter_data(selected_year, selected_quarter, selected_bank)\
+
+    return filtered_df.to_dict("records")
 
 
 def update_lineplot(filtered_df):
@@ -311,24 +384,29 @@ def update_lineplot(filtered_df):
                 ),
             ),
         ),
-        margin=dict(l=1, r=30, t=50, b=5),  # Margem do Plot
+        margin=dict(l=1,
+                    r=30,
+                    t=50,
+                    b=5),  # Margem do Plot
         transition_duration=1000,  # Tempo de transição na atulização do gráfico
     )
     return fig
 
 
 def update_pieplot(filtered_df):
-    """Cria um PiePlot utilizando os dados filtrados"""
-    # Soma de todas as operações dos bancos filtrado
+    """
+    Atualiza o plot de pizza com os dados filtrados.
+    """
+    # Somar todas as operações dos bancos filtrados
     total = filtered_df["TOTAL_N"].sum()
-    # Somando todas as operações dos bancos filtrados
+    # Agrupar as operações por nome do banco
     por_banco = filtered_df.groupby("NOME_BANCO")["TOTAL_N"].sum()
-    # Selecionando os bancos com operações menores a 5% do filtrado
+    # Selecionar bancos com operações menores que 5% do total
     menor_5 = (por_banco / total) < 0.05
-    # Dropando os bancos filtrados na linha acima
+    # Remover bancos com operações menores que 5% do total
     maior_95 = filtered_df[filtered_df["NOME_BANCO"].isin(
         por_banco[~menor_5].index)]
-    # Somando os bancos menores que % e adicionando como uma linha chamada 'Outros'
+    # Adicionar soma dos bancos com operações menores que 5% ao DataFrame como "Outros"
     com_outros = pd.concat(
         [
             maior_95,
@@ -526,62 +604,64 @@ def update_spread_lineplot(filtered_df):
 def create_barplot(filtered_df):
     """Cria um barplot dos valores trimestrais ou anuais usando os filtros"""
 
-    bb = filtered_df[filtered_df["NOME_BANCO"]
-                     == "BB"]  # Linhas onde o banco é o BB
+    # Linhas onde o banco é o BB
+    bb = filtered_df[filtered_df["NOME_BANCO"] == "BB"]
+
     # Somando os valores por Trimestre e ano
     filtered_df = filtered_df.groupby("ANO-TRIMESTRE").sum().reset_index()
+
     # Aplicando o nome mercado para o total
     filtered_df["NOME_BANCO"] = "MERCADO"
-    final_df = pd.concat([bb, filtered_df])  # Juntanto o BB com o Mercado
+
+    # Juntanto o BB com o Mercado
+    final_df = pd.concat([bb, filtered_df])
+
+    # Valor total do Mercado
+    total = final_df["TOTAL_N"].sum()
+
     # Pegando a porcentagem que o BB representa do Total
     final_df["TOTAL_N"] = final_df["TOTAL_N"] / 1000
-    total = final_df["TOTAL_N"].sum()  # Valor total do Mercado
     final_df.loc[final_df["NOME_BANCO"] == "BB", "PORCENTAGEM"] = (
         final_df[final_df["NOME_BANCO"] == "BB"]["TOTAL_N"] / total
-    ) * 1000
+    ) * 1000000
 
     def acumulado_ano(df):
         # Adicionar coluna ANO ao DataFrame df
 
         df["ANO"] = pd.to_datetime(df["ANO-TRIMESTRE"], format="%Y-%m").dt.year
 
-        # Criar duas variáveis bb_total e market_total
+        # Agrupa os valores do "TOTAL_N" pela coluna "ANO" para o banco "BB"
         bb_total = df[df["NOME_BANCO"] == "BB"].groupby(
             "ANO").agg({"TOTAL_N": "sum"})
-        market_total = (
-            df[df["NOME_BANCO"] == "MERCADO"].groupby(
-                "ANO").agg({"TOTAL_N": "sum"})
-        )
+        # Agrupa os valores do "TOTAL_N" pela coluna "ANO" para o mercado
+        market_total = df[df["NOME_BANCO"] == "MERCADO"].groupby(
+            "ANO").agg({"TOTAL_N": "sum"})
 
-        # Criar dois novos DataFrames bb_total_df e market_total_df
-        bb_total_df = (
-            bb_total.reset_index()
-            .rename(columns={"TOTAL_N": "TOTAL_N"})
-            .assign(NOME_BANCO="BB")
-        )
-        market_total_df = (
-            market_total.reset_index()
-            .rename(columns={"TOTAL_N": "TOTAL_N"})
-            .assign(NOME_BANCO="MERCADO")
-        )
+        # Cria um novo DataFrame com os totais do banco "BB"
+        bb_total_df = bb_total.reset_index().rename(
+            columns={"TOTAL_N": "TOTAL_N"}).assign(NOME_BANCO="BB")
+        # Cria um novo DataFrame com os totais do mercado
+        market_total_df = market_total.reset_index().rename(
+            columns={"TOTAL_N": "TOTAL_N"}).assign(NOME_BANCO="MERCADO")
 
-        # Concatenar os dois novos DataFrames em um único DataFrame total_df
+        # Concatena os dois novos DataFrames em um único DataFrame "total_df"
         total_df = pd.concat([bb_total_df, market_total_df])
-        # O quanto teve a cada ano
+        # Calcula o total acumulado a cada ano
         total_acumulado = total_df.groupby(
             "ANO")["TOTAL_N"].sum().reset_index()
-        # Quanto BB representa do Total de cada ano
+        # Calcula a porcentagem do BB do total de cada ano
         total_df.loc[total_df["NOME_BANCO"] == "BB", "PORCENTAGEM"] = (
-            total_df[total_df["NOME_BANCO"] == "BB"]["TOTAL_N"]
-            / total_acumulado["TOTAL_N"]
+            total_df[total_df["NOME_BANCO"] == "BB"]["TOTAL_N"] /
+            total_acumulado["TOTAL_N"]
         ) * 100
 
-        # Convertando para Datetime type
+        # Converte a coluna "ANO" para o tipo "Datetime"
         total_df["ANO"] = pd.to_datetime(total_df["ANO"], format="%Y")
 
         return total_df
 
     def fig(df, periodo):
+
         fig = px.bar(  # Criando a figura de Visualização
             df,  # Dataframe filtrado pelo dropdown
             x=periodo,  # Valor em X
@@ -594,7 +674,7 @@ def create_barplot(filtered_df):
             },
             custom_data=["NOME_BANCO"],
             text="TOTAL_N",
-            title="Operações do BB relativo ao Mercado",  # Titulo
+            title="Operações câmbio BB x Mercado",  # Titulo
             # Marcação nos pontos no gráfico
             color_discrete_map=bank_colors,  # Paleta de cores pré-definidas para cada Banco
         )
@@ -607,11 +687,13 @@ def create_barplot(filtered_df):
                 ]
             ),
             texttemplate="%{y:.2f} Mil",
-            textfont=dict(family="BancoDoBrasil Textos", color="white"),
+            textfont=dict(
+                family="BancoDoBrasil Textos",
+                color="white"),
         )
 
         fig.update_yaxes(
-            secondary_y=False, title_text="Resultado das Operações (em milhões)"
+            secondary_y=False, title_text="Numero de Operações"
         )
 
         fig.add_trace(
@@ -621,19 +703,21 @@ def create_barplot(filtered_df):
                 mode="lines+markers+text",
                 line_width=1.8,
                 line_color="#a1b2da",
-                name="Relação BB em %",
+                name="Participação BB %",
                 yaxis="y2",
                 texttemplate="%{y:.2f}%",
                 hovertemplate="<br>".join(
                     ["Participação do BB: %{y:.2f}%", "Ano e Trimestre: %{x}"]
                 ),
-                textfont=dict(family="BancoDoBrasil Textos", color="#8694B5"),
+                textfont=dict(
+                    family="BancoDoBrasil Textos",
+                    color="#8694B5"),
                 textposition="top left",
             )
         )
 
         fig.update_yaxes(
-            title_text="Relação BB em %",
+            title_text="Participação BB em %",
             secondary_y=True,
             title=dict(
                 font=dict(
@@ -686,7 +770,7 @@ def create_barplot(filtered_df):
                 )
             ),
             yaxis2=dict(
-                title="Relação BB em %",
+                title="Participação BB em %",
                 title_font=dict(
                     size=16,  # Tamanho da fonte
                     color="#0D214F",  # Cor da fonte
@@ -710,7 +794,7 @@ def create_barplot(filtered_df):
                     family="BancoDoBrasil Textos",  # Familia da fonte
                 ),
                 title=dict(  # Titulo da Legenda
-                    text="RELAÇÃO",  # String
+                    # String
                     font=dict(  # Fonte do Titulo da Leganda
                         size=13,  # Tamanho da fonte
                         color="#0D214F",  # Cor da fonte
@@ -723,33 +807,50 @@ def create_barplot(filtered_df):
         )
         return fig
 
+    # Criando o dataFrame do acumulado por ano
     total_df = acumulado_ano(final_df)
 
+    # Grafico trimestral
     fig1 = fig(final_df, "ANO-TRIMESTRE")
+    # Grafico Anual
     fig2 = fig(total_df, "ANO")
 
     return fig1, fig2
 
 
 @app.callback(
-    Output(component_id="bar-lineplot", component_property="figure"),
+    # identificador da saída e o tipo de dado esperado
+    Output("bar-lineplot", "figure"),
     [
+        # identificador do ano selecionado pelo usuário
         Input("year-dropdown", "value"),
+        # identificador do trimestre selecionado pelo usuário
         Input("quarter-dropdown", "value"),
+        # identificador do banco selecionado pelo usuário
         Input("bank-dropdown", "value"),
-        Input(component_id="trimestral-button", component_property="n_clicks"),
-        Input(component_id="ano-button", component_property="n_clicks"),
+        # identificador do número de cliques no botão trimestral
+        Input("trimestral-button", "n_clicks"),
+        # identificador do número de cliques no botão anual
+        Input("ano-button", "n_clicks"),
     ],
 )
 def update_barplot(
-    selected_year, selected_quarter, selected_bank, trimestral_clicks, ano_clicks
-):
-    """Função que retorna Anual ou Trimestral dependendo de qual botão for clicado"""
+        selected_year, selected_quarter, selected_bank, trimestral_clicks, ano_clicks):
+    """
+    Função que retorna Anual ou Trimestral dependendo de qual botão for clicado
+    Recebe como entrada as opções selecionadas pelo usuário no dropdown
+    """
 
+    # Filtra os dados de acordo com as opções selecionadas pelo usuário
     filtered_df = filter_data(selected_year, selected_quarter, selected_bank)
+
+    # Cria os gráficos de barra
     fig1, fig2 = create_barplot(filtered_df)
 
+    # Obtém o contexto da chamada da função de callback
     ctx = dash.callback_context
+
+    # Verifica qual botão foi clicado e retorna o gráfico apropriado
     if ctx.triggered[0]["prop_id"] == "trimestral-button.n_clicks":
         return fig1
     elif ctx.triggered[0]["prop_id"] == "ano-button.n_clicks":
@@ -770,14 +871,23 @@ def update_barplot(
     ],
 )
 def update_plots(selected_year, selected_quarter, selected_bank):
-    """Atualiza os gráficos baseados nos filtros escolhidos no dropdown"""
+    """
+    Atualiza os gráficos baseados nos filtros escolhidos no dropdown
+    """
 
+    # Filtra o DataFrame com base nas opções selecionadas
     filtered_df = filter_data(selected_year, selected_quarter, selected_bank)
+
+    # Atualiza o gráfico de linha
     line_plot = update_lineplot(filtered_df)
+
+    # Atualiza o gráfico de pizza
     pie_plot = update_pieplot(filtered_df)
+
+    # Atualiza o gráfico de linha de espalhamento
     spread_line_plot = update_spread_lineplot(filtered_df)
 
-    # Retorna a figura
+    # Retorna as figuras dos gráficos
     return pie_plot, spread_line_plot, line_plot
 
 
