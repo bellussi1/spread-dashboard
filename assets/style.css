@@ -58,7 +58,7 @@ body {
 
   backface-visibility: hidden;
   background-color: white;
-  border-radius: 0.315rem;
+
   border-width: 0;
   box-shadow: rgba(50, 50, 93, 0.1) 0 0 0 1px inset,
     rgba(50, 50, 93, 0.1) 0 2px 1px 0, rgba(0, 0, 0, 0.07) 0 1px 1px 0;
@@ -109,7 +109,7 @@ body {
   max-height: 30rem;
   margin: 0.625rem;
   padding: 0.625rem;
-  border-radius: 1.25rem;
+  
   background-color: white;
   box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
@@ -119,9 +119,9 @@ body {
   max-width: 84.375rem;
   height: 100%;
   max-height: 30rem;
-  margin: 0.625rem;
+  margin: 1.5rem 0.625rem 0.625rem 0.625rem;
   padding: 0.625rem;
-  border-radius: 1.25rem;
+  
   background-color: white;
   box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
@@ -134,8 +134,7 @@ body {
   margin: 0 0.625rem 0.625rem;
   margin-bottom: 0;
   padding: 0.625rem;
-  border-bottom-right-radius: 1.25rem;
-  border-bottom-left-radius: 1.25rem;
+
   background-color: white;
   box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
@@ -145,10 +144,10 @@ body {
   max-width: 28.75rem;
   height: 100%;
   max-height: 30rem;
-  margin-top: 0.5rem;
+  margin-top: 1.5rem;
   margin-left: 1.2rem;
   padding: 0.625rem;
-  border-radius: 1.25rem;
+
   background-color: white;
   box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
@@ -172,8 +171,7 @@ body {
   color: black;
   background-color: white;
   text-align: center;
-  border-bottom-right-radius: 1.25rem;
-  border-bottom-left-radius: 1.25rem;
+
   box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
 
@@ -183,14 +181,14 @@ body {
   font-weight: bold;
   float: left;
   margin-top: 0.625rem;
-  margin-left: 0.7rem;
+  margin-left: 1rem;
 }
 
 .dropdown {
   width: 90% !important;
   max-width: 27.5rem !important;
   margin-right: 0.625rem !important;
-  margin-left: 0.725rem !important;
+  margin-left: 0.9rem !important;
   cursor: pointer;
   color: black;
   background-color: transparent;
@@ -216,7 +214,7 @@ body {
 .dropdown .Select-value {
   background-color: rgb(4, 61, 100);
   border-width: 0 0.8rem 0 0.2rem;
-  border-radius: 0.5rem;
+
   text-align: center;
   border-color: rgb(4, 61, 100);
   color: white;
@@ -239,7 +237,19 @@ body {
   display: inline-block;
   overflow-y: auto;
   height: 100%;
-  max-height: 20rem;
+  max-height: 18rem;
+}
+
+.table{
+  overflow-x: auto;
+  font-family: "BancoDoBrasil Textos";
+  margin-left: 1.25rem ;
+  margin-top: 1rem ;
+  width: 100% ;
+  max-width: 30rem ;
+  height: 100% ;
+  max-height: 31.5rem;
+  box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
 
 .main-container {
