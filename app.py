@@ -30,9 +30,15 @@ def read_csv(csv_file_path):
 
     # Concatena o ano e o trimestre em uma coluna
     df["ANO-TRIMESTRE"] = df["ANO"].astype(str) + "-" + df["TRIMESTRE"]
-
+    
+    #Para visualização no DataTable
+    df['ANO_TRIMESTRE'] = df["ANO"].astype(str) + "-" + df["TRIMESTRE"]
+    
     # Formata os valores da coluna ANO-TRIMESTRE para o tipo Date
     df["ANO-TRIMESTRE"] = pd.to_datetime(df["ANO-TRIMESTRE"], format="%Y-%m")
+
+    # Cria a coluna TOTAL_VOL com a soma dos valores de VOLUME_OP e VOLUME_INTERBANK
+    df["TOTAL_VOL"] = df["VOLUME_OP"] + df["VOLUME_INTERBANK"]
 
     # Cria a coluna TOTAL_OP com a soma dos valores de RESULT_OP e DESPESA_OP
     df["TOTAL_OP"] = df["RESULT_OP"] + df["DESPESA_OP"]
@@ -61,8 +67,8 @@ app = Dash(__name__,
            update_title=None)
 
 # Armazena as colunas relevantes do dataframe df em uma nova variável 'table'
-table = df[['NOME_BANCO', 'ANO', 'TRIMESTRE', 'NUMERO_OP', 'VOLUME_OP',
-            'NUMERO_INTERBANK', 'VOLUME_INTERBANK', 'RESULT_OP', 'DESPESA_OP']]
+table = df[['NOME_BANCO', 'ANO_TRIMESTRE', 'VOLUME_OP',
+             'VOLUME_INTERBANK', 'RESULT_OP']]
 
 # Cria uma lista 'cols' com dicionários, onde cada dicionário tem as chaves "name" e "id", 
 # relacionando o nome de cada coluna com sua identificação
@@ -70,14 +76,10 @@ cols = [{"name": i, "id": i} for i in table.columns]
 
 # Sobrescreve 'cols' com uma nova lista, agora especificando o nome que cada coluna deve ter na exibição
 cols = [{"name": "Banco", "id": "NOME_BANCO"},
-        {"name": "Ano", "id": "ANO"},
-        {"name": "Trim.", "id": "TRIMESTRE"},
-        {"name": "Nº Op.", "id": "NUMERO_OP"},
+        {"name": "Ano", "id": "ANO_TRIMESTRE"},
         {"name": "Vol. Op.", "id": "VOLUME_OP"},
-        {"name": "Nº Op. Inter", "id": "NUMERO_INTERBANK"},
         {"name": "Vol. Op. Inter", "id": "VOLUME_INTERBANK"},
-        {"name": "Result. Op.", "id": "RESULT_OP"},
-        {"name": "Desp. Op.", "id": "DESPESA_OP"}]
+        {"name": "Result. Op.", "id": "RESULT_OP"}]
 
 # Definindo estilo para a tabela como um todo
 table_style = {
@@ -192,6 +194,7 @@ app.layout = html.Div(
                                           style_table=table_style,
                                           sort_action="native",
                                           sort_mode="multi",
+                                          sort_by=[ {"column_id": "ANO_TRIMESTRE", "direction": "desc"},{"column_id": "RESULT_OP", "direction": "desc"}],
                                           page_size=14
                                           )],
                     className='table'
@@ -617,14 +620,16 @@ def create_barplot(filtered_df):
     final_df = pd.concat([bb, filtered_df])
 
     # Valor total do Mercado
-    total = final_df["TOTAL_N"].sum()
+    total = final_df["TOTAL_VOL"].sum()
 
     # Pegando a porcentagem que o BB representa do Total
-    final_df["TOTAL_N"] = final_df["TOTAL_N"] / 1000
+   
     final_df.loc[final_df["NOME_BANCO"] == "BB", "PORCENTAGEM"] = (
-        final_df[final_df["NOME_BANCO"] == "BB"]["TOTAL_N"] / total
-    ) * 1000000
+        final_df[final_df["NOME_BANCO"] == "BB"]["TOTAL_VOL"] / total
+    ) * 1000
 
+    final_df["TOTAL_VOL"] = final_df["TOTAL_VOL"] / 1000000
+    
     def acumulado_ano(df):
         # Adicionar coluna ANO ao DataFrame df
 
@@ -632,27 +637,27 @@ def create_barplot(filtered_df):
 
         # Agrupa os valores do "TOTAL_N" pela coluna "ANO" para o banco "BB"
         bb_total = df[df["NOME_BANCO"] == "BB"].groupby(
-            "ANO").agg({"TOTAL_N": "sum"})
+            "ANO").agg({"TOTAL_VOL": "sum"})
         # Agrupa os valores do "TOTAL_N" pela coluna "ANO" para o mercado
         market_total = df[df["NOME_BANCO"] == "MERCADO"].groupby(
-            "ANO").agg({"TOTAL_N": "sum"})
+            "ANO").agg({"TOTAL_VOL": "sum"})
 
         # Cria um novo DataFrame com os totais do banco "BB"
         bb_total_df = bb_total.reset_index().rename(
-            columns={"TOTAL_N": "TOTAL_N"}).assign(NOME_BANCO="BB")
+            columns={"TOTAL_VOL": "TOTAL_VOL"}).assign(NOME_BANCO="BB")
         # Cria um novo DataFrame com os totais do mercado
         market_total_df = market_total.reset_index().rename(
-            columns={"TOTAL_N": "TOTAL_N"}).assign(NOME_BANCO="MERCADO")
+            columns={"TOTAL_VOL": "TOTAL_VOL"}).assign(NOME_BANCO="MERCADO")
 
         # Concatena os dois novos DataFrames em um único DataFrame "total_df"
         total_df = pd.concat([bb_total_df, market_total_df])
         # Calcula o total acumulado a cada ano
         total_acumulado = total_df.groupby(
-            "ANO")["TOTAL_N"].sum().reset_index()
+            "ANO")["TOTAL_VOL"].sum().reset_index()
         # Calcula a porcentagem do BB do total de cada ano
         total_df.loc[total_df["NOME_BANCO"] == "BB", "PORCENTAGEM"] = (
-            total_df[total_df["NOME_BANCO"] == "BB"]["TOTAL_N"] /
-            total_acumulado["TOTAL_N"]
+            total_df[total_df["NOME_BANCO"] == "BB"]["TOTAL_VOL"] /
+            total_acumulado["TOTAL_VOL"]
         ) * 100
 
         # Converte a coluna "ANO" para o tipo "Datetime"
@@ -665,16 +670,16 @@ def create_barplot(filtered_df):
         fig = px.bar(  # Criando a figura de Visualização
             df,  # Dataframe filtrado pelo dropdown
             x=periodo,  # Valor em X
-            y="TOTAL_N",  # Valor em y
+            y="TOTAL_VOL",  # Valor em y
             color="NOME_BANCO",
             barmode="group",  # Por qual coluna haverá diferenciação de cores
             labels={  # Nome das colunas na legenda
                 periodo: "Ano e Trimestre",
-                "TOTAL_N": "Numero de Operações",
+                "TOTAL_VOL": "Volume",
             },
             custom_data=["NOME_BANCO"],
-            text="TOTAL_N",
-            title="Operações câmbio BB x Mercado",  # Titulo
+            text="TOTAL_VOL",
+            title="Volume de câmbio BB x Mercado",  # Titulo
             # Marcação nos pontos no gráfico
             color_discrete_map=bank_colors,  # Paleta de cores pré-definidas para cada Banco
         )
@@ -683,17 +688,17 @@ def create_barplot(filtered_df):
                 [
                     "Instituição: %{customdata[0]}",
                     "Ano e Trimestre: %{x}",
-                    "Numero de Operações: %{y:.2f} Mil ",
+                    "Volume de Câmbio: %{y:.2f} Bilhoes (USD) ",
                 ]
             ),
-            texttemplate="%{y:.2f} Mil",
+            texttemplate="%{y:.2f} Bi USD",
             textfont=dict(
                 family="BancoDoBrasil Textos",
                 color="white"),
         )
 
         fig.update_yaxes(
-            secondary_y=False, title_text="Numero de Operações"
+            secondary_y=False, title_text="Volume de Câmbio"
         )
 
         fig.add_trace(
@@ -780,7 +785,7 @@ def create_barplot(filtered_df):
                 linewidth=2,
                 overlaying="y",
                 side="right",
-                range=[0, 45],
+                range=[0, 30],
             ),
             legend=dict(
                 bgcolor="rgba(0,0,0,0)",
