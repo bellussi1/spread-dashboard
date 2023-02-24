@@ -1,5 +1,6 @@
 # Importação das bibliotecas utilizadas
-from dash import dcc, html, Input, Output, Dash, dash_table
+from dash import dcc, html, Input, Output, State, Dash, dash_table
+from dash.exceptions import PreventUpdate
 import dash
 import plotly.express as px
 import pandas as pd
@@ -14,7 +15,6 @@ bank_colors = {  # Dicionario de cores para os principais Bancos
     "MERCADO": "#06548a",
 }
 
-# Carregando e Modificando o arquivo CSV em um DataFrame
 def read_csv(csv_file_path):
     """
     Carrega um dataFrame e faz alterações nas colunas
@@ -30,10 +30,10 @@ def read_csv(csv_file_path):
 
     # Concatena o ano e o trimestre em uma coluna
     df["ANO-TRIMESTRE"] = df["ANO"].astype(str) + "-" + df["TRIMESTRE"]
-    
-    #Para visualização no DataTable
+
+    # Para visualização no DataTable
     df['ANO_TRIMESTRE'] = df["ANO"].astype(str) + "-" + df["TRIMESTRE"]
-    
+
     # Formata os valores da coluna ANO-TRIMESTRE para o tipo Date
     df["ANO-TRIMESTRE"] = pd.to_datetime(df["ANO-TRIMESTRE"], format="%Y-%m")
 
@@ -66,20 +66,35 @@ app = Dash(__name__,
            title="Movimentação de Câmbio",
            update_title=None)
 
-# Armazena as colunas relevantes do dataframe df em uma nova variável 'table'
-table = df[['NOME_BANCO', 'ANO_TRIMESTRE', 'VOLUME_OP',
-             'VOLUME_INTERBANK', 'RESULT_OP']]
 
-# Cria uma lista 'cols' com dicionários, onde cada dicionário tem as chaves "name" e "id", 
-# relacionando o nome de cada coluna com sua identificação
-cols = [{"name": i, "id": i} for i in table.columns]
+def data_table(df):
 
-# Sobrescreve 'cols' com uma nova lista, agora especificando o nome que cada coluna deve ter na exibição
-cols = [{"name": "Banco", "id": "NOME_BANCO"},
-        {"name": "Ano", "id": "ANO_TRIMESTRE"},
-        {"name": "Vol. Op.", "id": "VOLUME_OP"},
-        {"name": "Vol. Op. Inter", "id": "VOLUME_INTERBANK"},
-        {"name": "Result. Op.", "id": "RESULT_OP"}]
+    # Armazena as colunas relevantes do dataframe df em uma nova variável 'table'
+    table = df[['NOME_BANCO', 'ANO_TRIMESTRE', 'VOLUME_OP',
+                'VOLUME_INTERBANK', 'RESULT_OP']].copy()
+
+    return table
+
+# Criando a visulização Table baseada no DataFrame
+table = data_table(df)
+
+
+def table_cols(table):
+    # Cria uma lista 'cols' com dicionários, onde cada dicionário tem as chaves "name" e "id",
+    # relacionando o nome de cada coluna com sua identificação
+    cols = [{"name": i, "id": i} for i in table.columns]
+
+    # Sobrescreve 'cols' com uma nova lista, agora especificando o nome que cada coluna deve ter na exibição
+    cols = [{"name": ["", "Banco"], "id": "NOME_BANCO"},
+            {"name": ["", "Ano"], "id": "ANO_TRIMESTRE"},
+            {"name": ["(USD)", "Vol. Prim."], "id": "VOLUME_OP"},
+            {"name": ["(USD)", "Vol. Inter."], "id": "VOLUME_INTERBANK"},
+            {"name": ["(BRL)", "Result. Op."], "id": "RESULT_OP"}]
+
+    return cols
+
+# Colunas que serão usadas do Table
+cols = table_cols(table)
 
 # Definindo estilo para a tabela como um todo
 table_style = {
@@ -104,6 +119,7 @@ cell_style = {
     'text-align': 'center',  # alinhamento centralizado dos valores
     'min-width': '75px',  # tamanho mínimo das células
     'font-family': 'BancoDoBrasil Textos',
+    'whiteSpace': 'normal',
 }
 
 # Criando o Layout para o Dashboard
@@ -174,6 +190,12 @@ app.layout = html.Div(
                             className="dropdown",
                             optionHeight=50,  # Altura das opções (Estetica)
                         ),
+                        html.Button(
+                            'Todos os Bancos',
+                            id='select_all',
+                            n_clicks=0,
+                            className="button-dropdown"
+                        ),
                     ],
                     className="dropdown-container",
                 ),
@@ -194,7 +216,9 @@ app.layout = html.Div(
                                           style_table=table_style,
                                           sort_action="native",
                                           sort_mode="multi",
-                                          sort_by=[ {"column_id": "ANO_TRIMESTRE", "direction": "desc"},{"column_id": "RESULT_OP", "direction": "desc"}],
+                                          sort_by=[{"column_id": "ANO_TRIMESTRE", "direction": "desc"},
+                                                   {"column_id": "RESULT_OP", "direction": "desc"}],
+                                          merge_duplicate_headers=True,
                                           page_size=14
                                           )],
                     className='table'
@@ -248,6 +272,7 @@ app.layout = html.Div(
 
 def filter_data(selected_year, selected_quarter, selected_bank, df=df):
     """Função de filtrar quais valores selecionados do dataframe"""
+    # Verifica se os valores selecionados para ano, trimestre e banco são listas, caso contrário converte para listas
     if not isinstance(selected_year, list):
         selected_year = [selected_year]
     if not isinstance(selected_quarter, list):
@@ -255,21 +280,25 @@ def filter_data(selected_year, selected_quarter, selected_bank, df=df):
     if not isinstance(selected_bank, list):
         selected_bank = [selected_bank]
 
+    # Filtra o dataframe com base nos valores selecionados
     filtered_df = df[
         (df["ANO"].isin(selected_year))
         & (df["TRIMESTRE"].isin(selected_quarter))
         & (df["NOME_BANCO"].isin(selected_bank))
     ]
 
+    # Adiciona uma coluna 'ANO-TRIMESTRE' ao dataframe se ela não existir
+    # A coluna é criada a partir das colunas 'ANO' e 'TRIMESTRE' com formato de string
+    # Essa coluna é convertida para um objeto datetime
     if "ANO-TRIMESTRE" not in filtered_df.columns:
         filtered_df["ANO-TRIMESTRE"] = filtered_df.apply(
             lambda x: str(x["ANO"]) + "-" + x["TRIMESTRE"], axis=1
         )
-
         filtered_df["ANO-TRIMESTRE"] = pd.to_datetime(
             filtered_df["ANO-TRIMESTRE"], format="%Y-%m"
         )
 
+    # Retorna o dataframe filtrado
     return filtered_df
 
 
@@ -283,104 +312,117 @@ def filter_data(selected_year, selected_quarter, selected_bank, df=df):
 )
 def update_table(selected_year, selected_quarter, selected_bank):
     """Atualiza os gráficos baseados nos filtros escolhidos no dropdown"""
+
+    # Filtra os dados com base nos parâmetros selecionados
     filtered_df = filter_data(selected_year, selected_quarter, selected_bank)\
 
+    # Divide os valores numéricos por 1 milhão para que sejam exibidos em unidades bilionárias
+    filtered_df['VOLUME_OP'] = filtered_df['VOLUME_OP'] / 1000000
+    filtered_df['VOLUME_INTERBANK'] = filtered_df['VOLUME_INTERBANK'] / 1000000
+    filtered_df['RESULT_OP'] = filtered_df['RESULT_OP'] / 1000000
+
+    # Converte os valores numéricos em strings com duas casas decimais e os concatena com a unidade bilhão (Bi)
+    filtered_df['VOLUME_OP'] = filtered_df['VOLUME_OP'].apply(
+        lambda x: f"{x:.2f}Bi ")
+    filtered_df['VOLUME_INTERBANK'] = filtered_df['VOLUME_INTERBANK'].apply(
+        lambda x: f"{x:.2f}Bi ")
+
+    # Verifica se RESULT_OP é diferente de zero antes de fazer a divisão e a concatenação
+    filtered_df.loc[filtered_df['RESULT_OP'] != 0, 'RESULT_OP']\
+        = filtered_df['RESULT_OP'][filtered_df['RESULT_OP'] != 0].apply(lambda x: f"{x:.2f}Bi ")
+
+    # Converte o dataframe em um dicionário de registros para exibição na página da web
     return filtered_df.to_dict("records")
 
 
 def update_lineplot(filtered_df):
     """Função que cria um lineplot com os filtros selecionados"""
 
-    fig = px.line(  # Criando a figura de Visualização
+    # Criando a figura de Visualização
+    fig = px.line(
         filtered_df,  # Dataframe filtrado pelo dropdown
         x="ANO-TRIMESTRE",  # Valor em X
         y="TOTAL_OP",  # Valor em y
         color="NOME_BANCO",  # Por qual coluna haverá diferenciação de cores
-        labels={  # Nome das colunas na legenda
-            "ANO-TRIMESTRE": "Ano e Trimestre",
-            "TOTAL_OP": "Resultado das Operações",
+        labels={
+            "ANO-TRIMESTRE": "Ano e Trimestre",  # Nome da coluna no eixo X
+            "TOTAL_OP": "Resultado das Operações",  # Nome da coluna no eixo Y
         },
-        custom_data=["NOME_BANCO"],
-        title="Resultado das Operações",
-        text=filtered_df["TOTAL_OP"] / 1000000,  # Info text
-        markers=True,  # Marcação nos pontos no gráfico
-        symbol="NOME_BANCO",  # Por qual coluna haverá diferenciação no simbolo dos marcadores
+        custom_data=["NOME_BANCO"],  # Dados customizados
+        title="Resultado das Operações",  # Título do gráfico
+        text=filtered_df["TOTAL_OP"] / 1000000,  # Informações de texto
+        markers=True,  # Marcadores nos pontos do gráfico
+        symbol="NOME_BANCO",  # Coluna usada para diferenciação de marcadores
         color_discrete_map=bank_colors,  # Paleta de cores pré-definidas para cada Banco
     )
 
-    fig.update_traces(
-        line=dict(width=1.8),  # Expressura da Linha
-        textposition="bottom right",  # Onde o infotext ficaria
-        texttemplate="%{text:.2f} Bi",
-        hovertemplate="<br>".join(
-            [  # Quais informacoes serão apresentadas
-                # "Instituição: %{customdata[0]}",
-                # "Ano e Trimestre: %{x}",
-                "<br> Resultado das Operações: %{text:.2f} Bilhões (R$)",
-            ]
-        ),
-    )  # Atualizando o traço do LinePlot
-    fig.update_layout(  # Estilizando a Visualização
-        height=480,  # Altura
-        paper_bgcolor="white",
-        # plot_bgcolor="#0D214F", # Cor no fundo do Plot
-        font=dict(
-            family="BancoDoBrasil Textos",
-            color='#002D4B',
-        ),
-        # Cor em volta do Plot
+    fig.update_traces(  # Atualizando o traço do LinePlot
+        line=dict(width=1.8),  # Largura da linha
+        textposition="bottom right",  # Posição do infotext
+        texttemplate="%{text:.2f} Bi",  # Template do infotext
+        hovertemplate="<br>".join([  # Template do hoverinfo
+            "<br>Resultado das Operações: %{text:.2f} Bilhões (R$)",
+        ]),
+    )
 
-        hoverlabel=dict(
-            bordercolor='#002D4B',
-            font=dict(
-                color='#002D4B',
-                size=12,
-                family="BancoDoBrasil Textos"
-            ),
-            bgcolor="white",
+    fig.update_layout(  # Atualizando as propriedades do Layout do Gráfico
+        height=480,  # Altura da figura
+        paper_bgcolor="white",  # Cor de fundo da figura
+        font=dict(
+                        family="BancoDoBrasil Textos",  # Fonte do texto
+                        color='#002D4B',  # Cor do texto
         ),
-        hovermode="x unified",
-        title=dict(  # Titulo
+        hoverlabel=dict(  # Propriedades do hoverlabel
+            bordercolor='#002D4B',  # Cor da borda do hoverlabel
+            font=dict(
+                color='#002D4B',  # Cor do texto
+                size=12,  # Tamanho do texto
+                family="BancoDoBrasil Textos",  # Fonte do texto
+            ),
+            bgcolor="white",  # Cor de fundo do hoverlabel
+        ),
+        hovermode="x unified",  # Modo de exibição do hoverinfo
+        title=dict(  # Propriedades do título do gráfico
             font=dict(
                 size=20,  # Tamanho da fonte
-                color="#0D214F",  # Cor da fonte
-                family="BancoDoBrasil Textos",  # Familia da fonte
+                color="#0D214F",  # Cor do texto
+                family="BancoDoBrasil Textos",  # Fonte do texto
             ),
-            x=0.5,  # Posição no eixo X
-            y=0.95,  # Posição no eixo y
+            x=0.5,  # Posição do título no eixo X
+            y=0.95,  # Posição do título no eixo Y
         ),
-        xaxis=dict(  # Escala de X
+        xaxis=dict(  # Propriedades do eixo X
             title=dict(
                 font=dict(
                     size=16,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="BancoDoBrasil Textos",  # Familia da fonte
+                    color="#0D214F",  # Cor do texto
+                    family="BancoDoBrasil Textos",  # Fonte do texto
                 ),
             )
         ),
-        yaxis=dict(  # Escala de Y
+        yaxis=dict(  # Propriedades do eixo Y
             title=dict(
                 font=dict(
                     size=16,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="BancoDoBrasil Textos",  # Familia da fonte
+                    color="#0D214F",  # Cor do texto
+                    family="BancoDoBrasil Textos",  # Fonte do texto
                 ),
             )
         ),
-        legend=dict(  # Legenda
-            bgcolor="rgba(0,0,0,0)",  # Cor de fundo
-            yanchor="top",  # Ancora Y
-            y=0.99,  # Posição Y
-            xanchor="left",  # Ancora X
-            x=1,  # Posicao X
-            font=dict(  # Fonte da Legenda
-                size=11,  # Tamanho da fonte
-                color="#0D214F",  # Cor da fonte
-                family="BancoDoBrasil Textos",  # Familia da fonte
+        legend=dict(  # Propriedades da legenda
+            bgcolor="rgba(0,0,0,0)",  # Cor de fundo da legenda
+            yanchor="top",  # Posição da legenda no eixo Y
+            y=0.99,  # Posição da legenda no eixo Y
+            xanchor="left",  # Posição da legenda no eixo X
+            x=1,  # Posição da legenda no eixo X
+            font=dict(  # Propriedades do texto da legenda
+                            size=11,  # Tamanho da fonte
+                            color="#0D214F",  # Cor do texto
+                            family="BancoDoBrasil Textos",  # Fonte do texto
             ),
-            title=dict(  # Titulo da Legenda
-                text="INSTITUIÇÕES BANCÁRIAS",  # String
-                font=dict(  # Fonte do Titulo da Leganda
+            title=dict(  # Propriedades do título da legenda
+                text="INSTITUIÇÕES BANCÁRIAS",  # Texto do título
+                font=dict(  # Propriedades do texto do título
                     size=13,  # Tamanho da fonte
                     color="#0D214F",  # Cor da fonte
                     family="BancoDoBrasil Textos",  # Familia da fonte
@@ -402,100 +444,111 @@ def update_pieplot(filtered_df):
     """
     # Somar todas as operações dos bancos filtrados
     total = filtered_df["TOTAL_N"].sum()
+
     # Agrupar as operações por nome do banco
     por_banco = filtered_df.groupby("NOME_BANCO")["TOTAL_N"].sum()
+
     # Selecionar bancos com operações menores que 5% do total
     menor_5 = (por_banco / total) < 0.05
+
     # Remover bancos com operações menores que 5% do total
     maior_95 = filtered_df[filtered_df["NOME_BANCO"].isin(
         por_banco[~menor_5].index)]
+
     # Adicionar soma dos bancos com operações menores que 5% ao DataFrame como "Outros"
     com_outros = pd.concat(
         [
-            maior_95,
-            pd.DataFrame(
-                {"TOTAL_N": [por_banco[menor_5].sum()], "NOME_BANCO": [
-                    "Outros"]}
+            maior_95,  # DataFrame com bancos com operações maiores que 5% do total
+            pd.DataFrame(  # DataFrame com o total das operações dos bancos com menos de 5%
+                {
+                    # Soma das operações dos bancos com menos de 5%
+                    "TOTAL_N": [por_banco[menor_5].sum()],
+                    "NOME_BANCO": ["Outros"]  # Nome para o novo grupo
+                }
             ),
         ]
     )
 
+    # Cria uma figura com o tipo de gráfico pie chart a partir do dataframe com_outros
     fig = px.pie(
         com_outros,  # Dataframe feito acima
-        values="TOTAL_N",  # Valores
-        names="NOME_BANCO",  # Nome das fatias
-        title="Total de Operações",  # Titulo
-        color="NOME_BANCO",  # Por qual coluna mudara as cores
-        color_discrete_map=bank_colors,  # Padrão de Cores
-        custom_data=["NOME_BANCO"],  # Dado para Infotext
+        values="TOTAL_N",  # Coluna com os valores das fatias
+        names="NOME_BANCO",  # Coluna com os nomes das fatias
+        title="Total de Operações",  # Título do gráfico
+        color="NOME_BANCO",  # Coluna que determina as cores das fatias
+        # Dicionário com as cores padrão para cada valor da coluna color
+        color_discrete_map=bank_colors,
+        # Lista com as colunas extras que serão exibidas ao passar o mouse sobre as fatias (info text)
+        custom_data=["NOME_BANCO"],
     )
 
+    # Define algumas configurações das fatias do gráfico
     fig.update_traces(
-        textposition="inside",  # Posição do Infotext
-        textinfo="percent+label",  # O que sera apresentado no Infotext
-        hovertemplate="<br>".join(
-            [  # Formatação do Hovertext
+        textposition="inside",  # Posição do texto dentro das fatias
+        # Informações que serão exibidas no texto das fatias (percentual e rótulo)
+        textinfo="percent+label",
+        hovertemplate="<br>".join(  # Formato do texto que aparece quando o mouse é posicionado sobre as fatias
+            [
+                # Coluna extra que será exibida no info text
                 "Instituição: %{customdata[0]}",
-                "Numero de Operações: %{value} ",
+                "Numero de Operações: %{value} ",  # Valor numérico da fatia
             ]
         ),
     )
+    # Define algumas configurações gerais do layout do gráfico
     fig.update_layout(
-        width=460,  # Largura
-        height=480,  # Altura
-        font=dict(
-            family="BancoDoBrasil Textos",
-            color='#002D4B',
+        width=460,  # Largura da figura
+        height=480,  # Altura da figura
+        font=dict(  # Configurações da fonte
+            family="BancoDoBrasil Textos",  # Nome da fonte
+            color='#002D4B',  # Cor da fonte
         ),
-        # Cor em volta do Plot
-
-        hoverlabel=dict(
-            bordercolor='#002D4B',
-            font=dict(
-                color='#002D4B',
-                size=12,
-                family="BancoDoBrasil Textos"
+        hoverlabel=dict(  # Configurações da caixa de texto que aparece ao passar o mouse sobre as fatias
+            bordercolor='#002D4B',  # Cor da borda da caixa
+            font=dict(  # Configurações da fonte da caixa
+                color='#002D4B',  # Cor da fonte
+                size=12,  # Tamanho da fonte
+                family="BancoDoBrasil Textos",  # Nome da fonte
             ),
-            bgcolor="white",
+            bgcolor="white",  # Cor de fundo da caixa
         ),
-        paper_bgcolor="white",  # Cor em volta do Plot
-        # plot_bgcolor="#0D214F", # Cor no fundo do Plot
-        title=dict(  # Titulo
+        paper_bgcolor="white",  # Cor de fundo da figura
+        title=dict(  # Configurações do título do gráfico
             font=dict(
                 size=20,  # Tamanho da fonte
                 color="#0D214F",  # Cor da fonte
-                family="Arial",  # Familia da fonte
+                family="Arial",  # Nome da fonte
             ),
-            x=0.5,  # Posição no eixo X
-            y=0.95,  # Posição no eixo y
+            x=0.5,  # Posição do título no eixo x (0 = esquerda, 1 = direita)
+            y=0.95,  # Posição do título no eixo y (0 = baixo, 1 = topo)
         ),
-        xaxis=dict(  # Valor em X
-            title=dict(
-                font=dict(
+        xaxis=dict(  # Configuração para o eixo X
+            title=dict(  # Configuração para o título do eixo X
+                font=dict(  # Configuração para a fonte do título do eixo X
                     size=16,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="Arial",  # Familia da fonte
+                    color="#0D214F",  # Cor da fonte em código hexadecimal
+                    family="Arial",  # Família da fonte
                 ),
             )
         ),
-        yaxis=dict(
-            title=dict(
-                font=dict(
+        yaxis=dict(  # Configuração para o eixo Y
+            title=dict(  # Configuração para o título do eixo Y
+                font=dict(  # Configuração para a fonte do título do eixo Y
                     size=16,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="Arial",  # Familia da fonte
+                    color="#0D214F",  # Cor da fonte em código hexadecimal
+                    family="Arial",  # Família da fonte
                 ),
             )
         ),
-        legend=dict(
-            orientation="h",
-            yanchor="middle",
-            y=-0.2,
-            xanchor="center",
-            x=0.5,
-            bgcolor="rgba(0,0,0,0)",
+        legend=dict(  # Configuração para a legenda
+            orientation="h",  # Orientação horizontal
+            yanchor="middle",  # Âncora vertical no meio
+            y=-0.2,  # Posição vertical relativa à âncora
+            xanchor="center",  # Âncora horizontal no centro
+            x=0.5,  # Posição horizontal relativa à âncora
+            bgcolor="rgba(0,0,0,0)",  # Cor de fundo da legenda
         ),
-        # Tempo de transição na atulização do gráfico
+        # Duração da transição na atualização do gráfico em milissegundos
         transition=dict(duration=1500),
     )
     return fig
@@ -504,86 +557,87 @@ def update_pieplot(filtered_df):
 def update_spread_lineplot(filtered_df):
     """Função que cria um lineplot do spread com os filtros selecionados"""
 
-    fig = px.line(  # Criando a figura de Visualização
+    # Criando a figura de Visualização com a biblioteca Plotly Express
+    fig = px.line(
         filtered_df,  # Dataframe filtrado pelo dropdown
-        x="ANO-TRIMESTRE",  # Valor em X
-        y="SPREAD",  # Valor em y
-        color="NOME_BANCO",  # Por qual coluna haverá diferenciação de cores
-        labels={  # Nome das colunas na legenda
+        x="ANO-TRIMESTRE",  # Coluna com os valores do eixo X
+        y="SPREAD",  # Coluna com os valores do eixo Y
+        color="NOME_BANCO",  # Coluna com valores distintos para diferenciar as cores das linhas
+        labels={  # Renomeando as colunas do gráfico
             "ANO-TRIMESTRE": "Ano e Trimestre",
             "SPREAD": "Spread",
         },
+        # Selecionando quais dados extras serão mostrados em hover
         custom_data=["NOME_BANCO"],
-        text="SPREAD",
-        title="Spread Cambial (%)",  # Titulo
-        markers=True,  # Marcação nos pontos no gráfico
-        color_discrete_map=bank_colors,  # Paleta de cores pré-definidas para cada Banco
+        text="SPREAD",  # Selecionando quais valores aparecerão ao passar o mouse sobre as linhas
+        title="Spread Cambial (%)",  # Título do gráfico
+        markers=True,  # Habilitando marcadores nos pontos da linha
+        # Definindo uma paleta de cores pré-definida para cada banco
+        color_discrete_map=bank_colors,
     )
 
-    fig.update_traces(
-        line=dict(width=1.8),
-        textposition="bottom right",
-        texttemplate="%{y:.2f} %",
+    fig.update_traces(  # Atualizando o traço do LinePlot
+        line=dict(width=1.8),  # Largura da linha do lineplot
+        textposition="bottom right",  # Posição do texto nos pontos do lineplot
+        texttemplate="%{y:.2f} %",  # Formato do texto nos pontos do lineplot
         hovertemplate="<br>".join(
             [
-                # "Instituição: %{customdata[0]}",
-                # "Ano e Trimestre: %{x}",
-                "Spread: %{y}%",
+                "Spread: %{y}%",  # Texto do hover nos pontos do lineplot
             ]
         )
-    )  # Atualizando o traço do LinePlot
+    )
 
     fig.update_layout(  # Estilizando a Visualização
-        height=480,
+        height=480,  # Altura da figura
         font=dict(
-            family="BancoDoBrasil Textos",
-            color='#002D4B',
+            family="BancoDoBrasil Textos",  # Fonte do texto
+            color='#002D4B',  # Cor do texto
         ),
-        paper_bgcolor="white",  # Cor em volta do Plot
+        paper_bgcolor="white",  # Cor do fundo da figura
         # plot_bgcolor="#0D214F", # Cor no fundo do Plot
         hoverlabel=dict(
-            bordercolor='#002D4B',
+            bordercolor='#002D4B',  # Cor da borda do hover
             font=dict(
-                color='#002D4B',
-                size=12,
-                family="BancoDoBrasil Textos"
+                color='#002D4B',  # Cor do texto do hover
+                size=12,  # Tamanho da fonte do hover
+                family="BancoDoBrasil Textos"  # Fonte do texto do hover
             ),
-            bgcolor="white",
+            bgcolor="white",  # Cor do fundo do hover
         ),
-        hovermode="x unified",
+        hovermode="x unified",  # Modo do hover
         title=dict(  # Titulo
             font=dict(
-                size=20,  # Tamanho da fonte
-                color="#0D214F",  # Cor da fonte
-                family="BancoDoBrasil Textos",  # Familia da fonte
+                size=20,  # Tamanho da fonte do titulo
+                color="#0D214F",  # Cor do titulo
+                family="BancoDoBrasil Textos",  # Fonte do titulo
             ),
-            x=0.5,  # Posição no eixo X
-            y=0.95,  # Posição no eixo y
+            x=0.5,  # Posição do titulo no eixo X
+            y=0.95,  # Posição do titulo no eixo Y
         ),
-        xaxis=dict(  # Valor em X
+        xaxis=dict(  # Eixo X
             title=dict(
                 font=dict(
-                    size=16,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="BancoDoBrasil Textos",  # Familia da fonte
+                    size=16,  # Tamanho da fonte do titulo do eixo X
+                    color="#0D214F",  # Cor do titulo do eixo X
+                    family="BancoDoBrasil Textos",  # Fonte do titulo do eixo X
                 ),
             )
         ),
-        yaxis=dict(
+        yaxis=dict(  # Eixo Y
             title=dict(
                 font=dict(
-                    size=16,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="BancoDoBrasil Textos",  # Familia da fonte
+                    size=16,  # Tamanho da fonte do titulo do eixo Y
+                    color="#0D214F",  # Cor do titulo do eixo Y
+                    family="BancoDoBrasil Textos",  # Fonte do titulo do eixo Y
                 ),
             )
         ),
-        legend=dict(
-            bgcolor="rgba(0,0,0,0)",
-            yanchor="top",
-            y=0.99,
-            xanchor="left",
-            x=1,
+        legend=dict(  # Legenda
+            bgcolor="rgba(0,0,0,0)",  # Cor de fundo da legenda
+            yanchor="top",  # Âncora da legenda no eixo Y
+            y=0.99,  # Posição da legenda no eixo Y
+            xanchor="left",  # Âncora da legenda no eixo X
+            x=1,  # Posição da legenda no eixo X
             font=dict(  # Fonte da Legenda
                 size=11,  # Tamanho da fonte
                 color="#0D214F",  # Cor da fonte
@@ -623,13 +677,12 @@ def create_barplot(filtered_df):
     total = final_df["TOTAL_VOL"].sum()
 
     # Pegando a porcentagem que o BB representa do Total
-   
     final_df.loc[final_df["NOME_BANCO"] == "BB", "PORCENTAGEM"] = (
         final_df[final_df["NOME_BANCO"] == "BB"]["TOTAL_VOL"] / total
     ) * 1000
 
     final_df["TOTAL_VOL"] = final_df["TOTAL_VOL"] / 1000000
-    
+
     def acumulado_ano(df):
         # Adicionar coluna ANO ao DataFrame df
 
@@ -667,63 +720,73 @@ def create_barplot(filtered_df):
 
     def fig(df, periodo):
 
-        fig = px.bar(  # Criando a figura de Visualização
+        fig = px.bar(  # Cria uma figura de barras
             df,  # Dataframe filtrado pelo dropdown
-            x=periodo,  # Valor em X
-            y="TOTAL_VOL",  # Valor em y
-            color="NOME_BANCO",
-            barmode="group",  # Por qual coluna haverá diferenciação de cores
-            labels={  # Nome das colunas na legenda
+            x=periodo,  # Define o eixo x como o período (ano e trimestre)
+            y="TOTAL_VOL",  # Define o eixo y como o volume total de câmbio
+            color="NOME_BANCO",  # Define a coluna que diferencia as cores como o nome do banco
+            # Define o modo das barras como "group" (barras agrupadas)
+            barmode="group",
+            labels={  # Define os rótulos dos eixos
                 periodo: "Ano e Trimestre",
                 "TOTAL_VOL": "Volume",
             },
+            # Define quais dados personalizados serão exibidos ao passar o mouse sobre as barras
             custom_data=["NOME_BANCO"],
-            text="TOTAL_VOL",
-            title="Volume de câmbio BB x Mercado",  # Titulo
-            # Marcação nos pontos no gráfico
-            color_discrete_map=bank_colors,  # Paleta de cores pré-definidas para cada Banco
+            text="TOTAL_VOL",  # Define o texto exibido sobre as barras como o volume total de câmbio
+            title="Volume de câmbio BB x Mercado",  # Define o título da figura
+            color_discrete_map=bank_colors,  # Define a paleta de cores para cada banco
         )
-        fig.update_traces(
-            hovertemplate="<br>".join(
+        fig.update_traces(  # Atualiza as propriedades das barras
+            hovertemplate="<br>".join(  # Define o formato de exibição ao passar o mouse sobre as barras
                 [
+                    # Nome da instituição (BB ou Mercado)
                     "Instituição: %{customdata[0]}",
-                    "Ano e Trimestre: %{x}",
+                    "Ano e Trimestre: %{x}",  # Período (ano e trimestre)
+                    # Volume de câmbio formatado em bilhões de dólares
                     "Volume de Câmbio: %{y:.2f} Bilhoes (USD) ",
                 ]
             ),
+            # Define o formato do texto exibido sobre as barras como bilhões de dólares
             texttemplate="%{y:.2f} Bi USD",
-            textfont=dict(
+            textfont=dict(  # Define a fonte do texto exibido sobre as barras
+                # Define a família da fonte como "BancoDoBrasil Textos"
                 family="BancoDoBrasil Textos",
-                color="white"),
+                color="white"),  # Define a cor do texto como branco
         )
 
-        fig.update_yaxes(
-            secondary_y=False, title_text="Volume de Câmbio"
+        fig.update_yaxes(  # Define o título e alinha o eixo y principal
+            secondary_y=False,
+            title_text="Volume de Câmbio"
         )
 
+        # Adiciona um gráfico de linhas para a participação do BB
         fig.add_trace(
             go.Scatter(
-                x=df[periodo],
+                x=df[periodo],  # Define o eixo x com base no dropdown selecionado
+                # Define a participação do BB como valor de y
                 y=df["PORCENTAGEM"],
-                mode="lines+markers+text",
-                line_width=1.8,
-                line_color="#a1b2da",
-                name="Participação BB %",
-                yaxis="y2",
+                mode="lines+markers+text",  # Define o tipo de visualização
+                line_width=1.8,  # Define a largura da linha
+                line_color="#a1b2da",  # Define a cor da linha
+                name="Participação BB %",  # Define o nome da linha na legenda
+                yaxis="y2",  # Define que a linha será plotada no eixo y secundário
+                # Define o template para o texto que será exibido nos marcadores
                 texttemplate="%{y:.2f}%",
                 hovertemplate="<br>".join(
                     ["Participação do BB: %{y:.2f}%", "Ano e Trimestre: %{x}"]
-                ),
+                ),  # Define o texto exibido no hover
                 textfont=dict(
                     family="BancoDoBrasil Textos",
-                    color="#8694B5"),
-                textposition="top left",
+                    color="#8694B5"
+                ),  # Define a fonte e a cor do texto
+                textposition="top left",  # Define a posição do texto
             )
         )
 
         fig.update_yaxes(
-            title_text="Participação BB em %",
-            secondary_y=True,
+            title_text="Participação BB em %",  # Define o título do eixo secundário
+            secondary_y=True,  # Define o eixo secundário como True
             title=dict(
                 font=dict(
                     size=16,  # Tamanho da fonte
@@ -733,82 +796,81 @@ def create_barplot(filtered_df):
             ),
         )
 
-        fig.update_layout(  # Estilizando a Visualização
-            height=480,
-            paper_bgcolor="white",
-            # Cor em volta do Plot
-            # plot_bgcolor="#0D214F", # Cor no fundo do Plot
-            hoverlabel=dict(
-                bordercolor='#002D4B',
-                font=dict(
-                    color='#002D4B',
-                    size=12,
-                    family="BancoDoBrasil Textos"
+        fig.update_layout(  # Atualizando o layout da figura
+            height=480,  # Definindo a altura da figura
+            paper_bgcolor="white",  # Definindo a cor de fundo da figura
+            hoverlabel=dict(  # Definindo a caixa de texto ao passar o mouse
+                bordercolor='#002D4B',  # Cor da borda da caixa
+                font=dict(  # Definindo a fonte da caixa
+                            color='#002D4B',  # Cor do texto da caixa
+                            size=12,  # Tamanho do texto da caixa
+                            family="BancoDoBrasil Textos"  # Fonte do texto da caixa
                 ),
-                bgcolor="white",
+                bgcolor="white",  # Cor de fundo da caixa
             ),
-            title=dict(  # Titulo
+            title=dict(  # Configurando o título
                 font=dict(
-                    size=20,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="BancoDoBrasil Textos",  # Familia da fonte
+                    size=20,  # Tamanho da fonte do título
+                    color="#0D214F",  # Cor do título
+                    family="BancoDoBrasil Textos",  # Fonte do título
                 ),
-                x=0.5,  # Posição no eixo X
-                y=0.95,  # Posição no eixo y
+                x=0.5,  # Posição do título no eixo X
+                y=0.95,  # Posição do título no eixo y
             ),
-            xaxis=dict(  # Valor em X
+            xaxis=dict(  # Configurando o eixo X
                 title=dict(
                     font=dict(
-                        size=16,  # Tamanho da fonte
-                        color="#0D214F",  # Cor da fonte
-                        family="BancoDoBrasil Textos",  # Familia da fonte
+                        size=16,  # Tamanho da fonte do título do eixo X
+                        color="#0D214F",  # Cor do título do eixo X
+                        family="BancoDoBrasil Textos",  # Fonte do título do eixo X
                     ),
                 )
             ),
-            yaxis=dict(
+            yaxis=dict(  # Configurando o eixo Y principal
                 title=dict(
                     font=dict(
-                        size=16,  # Tamanho da fonte
-                        color="#0D214F",  # Cor da fonte
-                        family="BancoDoBrasil Textos",  # Familia da fonte
+                        size=16,  # Tamanho da fonte do título do eixo Y
+                        color="#0D214F",  # Cor do título do eixo Y
+                        family="BancoDoBrasil Textos",  # Fonte do título do eixo Y
                     ),
                 )
             ),
-            yaxis2=dict(
-                title="Participação BB em %",
+            yaxis2=dict(  # Configurando o eixo Y secundário
+                title="Participação BB em %",  # Título do eixo Y secundário
                 title_font=dict(
-                    size=16,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="BancoDoBrasil Textos",
+                    size=16,  # Tamanho da fonte do título do eixo Y secundário
+                    color="#0D214F",  # Cor do título do eixo Y secundário
+                    family="BancoDoBrasil Textos",  # Fonte do título do eixo Y secundário
                 ),
-                type="linear",
-                linewidth=2,
-                overlaying="y",
-                side="right",
+                type="linear",  # Tipo do eixo Y secundário
+                linewidth=2,  # Largura da linha do eixo Y secundário
+                overlaying="y",  # Sobrepõe o eixo Y principal
+                side="right",  # Posiciona o eixo Y secundário à direita
+                # Define o intervalo do eixo Y secundário
                 range=[0, 30],
             ),
-            legend=dict(
-                bgcolor="rgba(0,0,0,0)",
-                yanchor="top",
-                y=0.99,
-                xanchor="left",
-                x=1,
+            legend=dict(  # Configurando a legenda
+                bgcolor="rgba(0,0,0,0)",  # Cor de fundo da legenda
+                yanchor="top",  # Âncora vertical da legenda
+                y=0.99,  # Posição vertical da legenda
+                xanchor="left",  # Âncora horizontal da legenda
+                x=1,  # Posição horizontal da legenda
                 font=dict(  # Fonte da Legenda
-                    size=11,  # Tamanho da fonte
-                    color="#0D214F",  # Cor da fonte
-                    family="BancoDoBrasil Textos",  # Familia da fonte
+                            size=11,  # Tamanho da fonte
+                            color="#0D214F",  # Cor da fonte
+                            family="BancoDoBrasil Textos",  # Familia da fonte
                 ),
                 title=dict(  # Titulo da Legenda
-                    # String
                     font=dict(  # Fonte do Titulo da Leganda
-                        size=13,  # Tamanho da fonte
-                        color="#0D214F",  # Cor da fonte
-                        family="BancoDoBrasil Textos",  # Familia da fonte
+                                size=13,  # Tamanho da fonte
+                                color="#0D214F",  # Cor da fonte
+                                family="BancoDoBrasil Textos",  # Familia da fonte
                     ),
                 ),
             ),
+            # Configurando as margens do gráfico
             margin=dict(l=1, r=90, t=50, b=5),
-            transition_duration=1000,  # Tempo de transição na atulização do gráfico
+            transition_duration=1000,  # Tempo de transição na atualização do gráfico
         )
         return fig
 
@@ -865,13 +927,19 @@ def update_barplot(
 
 @app.callback(
     [
+        # Saída 1: gráfico de pizza
         Output("operations-result-pieplot", "figure"),
+        # Saída 2: gráfico de linha
         Output("spread-lineplot", "figure"),
+        # Saída 3: gráfico de linha
         Output("operations-result-lineplot", "figure"),
     ],
-    [  # Parametros de inputs (Ano, Trimestre e Banco)
+    [
+        # Entrada 1: dropdown com seleção do ano
         Input("year-dropdown", "value"),
+        # Entrada 2: dropdown com seleção do trimestre
         Input("quarter-dropdown", "value"),
+        # Entrada 3: dropdown com seleção do banco
         Input("bank-dropdown", "value"),
     ],
 )
@@ -883,17 +951,51 @@ def update_plots(selected_year, selected_quarter, selected_bank):
     # Filtra o DataFrame com base nas opções selecionadas
     filtered_df = filter_data(selected_year, selected_quarter, selected_bank)
 
-    # Atualiza o gráfico de linha
+    # Atualiza o gráfico de linha de resultados
     line_plot = update_lineplot(filtered_df)
 
-    # Atualiza o gráfico de pizza
+    # Atualiza o gráfico de pizza de número de operações
     pie_plot = update_pieplot(filtered_df)
 
-    # Atualiza o gráfico de linha de espalhamento
+    # Atualiza o gráfico de linha de spread
     spread_line_plot = update_spread_lineplot(filtered_df)
 
     # Retorna as figuras dos gráficos
     return pie_plot, spread_line_plot, line_plot
+
+
+@app.callback(
+    # Saída da função, atualiza o valor do dropdown
+    Output('bank-dropdown', 'value'),
+    # Entrada da função, cliques no botão "Selecionar Todos"
+    [Input('select_all', 'n_clicks')],
+    # Estado da função, opções do dropdown
+    [State('bank-dropdown', 'options')]
+)
+def update_dropdown(n_clicks, feature_options):
+
+    ctx = dash.callback_context  # Obtém o contexto da chamada da callback
+
+    # Verifica se a callback foi disparada
+    if not ctx.triggered:
+        raise PreventUpdate()
+    else:
+        trigged_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+        # Verifica se o botão "Selecionar Todos" foi clicado
+        if trigged_id == 'select_all':
+
+            # Não atualiza o dropdown no início da aplicação
+            if n_clicks == 0:
+                raise PreventUpdate()
+
+            # Limpa todas as opções do dropdown nos cliques pares
+            if n_clicks % 2 == 0:
+                return []
+            else:  # Seleciona todas as opções do dropdown nos cliques ímpares
+                return [i['value'] for i in feature_options]
+        else:
+            raise PreventUpdate()  # Não atualiza o dropdown em caso de outras entradas
 
 
 if __name__ == "__main__":  # Iniciando o o Dashboard
