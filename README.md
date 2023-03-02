@@ -6,6 +6,8 @@ O dashboard possui quatro gráficos: spread, número de operações, resultado d
 ## Como usar
 Para executar o dashboard, é necessário ter o Python instalado e as bibliotecas Dash e Pandas. Após a instalação das dependências, execute o arquivo app.py no terminal. Isso iniciará o servidor local que hospeda o dashboard.
 
+[Live Demo](https://raw.githack.com/bellussi1/spread-dashboard/master/app.py)
+
 No dashboard, selecione o banco, o ano e o trimestre que deseja analisar. Os gráficos serão atualizados automaticamente com os dados selecionados.
 
 ## Arquivos do repositório
