@@ -1,295 +1,181 @@
 body {
   background-color: #f1f1f1;
   color: black;
-  font-family: "BancoDoBrasil Textos";
+  font-family: 'BancoDoBrasil Titulos';
   width: 100%;
-  height: 100vh;
-  max-width: 100%;
-  overflow: auto;
-  overflow: initial;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
   margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.main-container {
+  display: flex;
 }
 
 .layout {
+  z-index: 1;
   display: flex;
   position: fixed;
+  justify-content: center;
+  align-items: center;
+  flex-flow: row;
+  height: 7.5%;
   width: 100%;
-  height: 100%;
-  max-height: 5.625rem;
-  margin: 0;
-  z-index: 3;
   background-color: rgb(0, 45, 75);
   overflow: hidden;
 }
 
 .logo {
-  width: 100%;
-  max-width: 26.875rem;
+  object-fit: contain;
+  width: 25%;
   height: 100%;
-  max-height: 5rem;
-  margin: 0.3125rem;
-  z-index: 2;
 }
 
 .layout-title {
-  font-size: 2.5rem;
+  font-size: 1.5vw;
   color: white;
-  height: 100%;
-  max-height: 2.5rem;
-  margin-top: 1.25rem;
-  margin-left: 1rem;
+  width: 100%;
+  margin-left: 3.5%;
   background-color: transparent;
+  white-space: nowrap;
 }
 
 .button-container {
   display: flex;
+  padding: 1% 0;
   background-color: white;
   width: 100%;
-  max-width: 85rem;
-  height: 4rem;
-  margin: 0.75rem 0 0 0.625rem;
-  padding: 0.3125rem;
   text-align: center;
-  box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
 
 .button {
-  font-family: "BancoDoBrasil Textos";
-  backface-visibility: hidden;
+  font-family: 'BancoDoBrasil Titulos';
   background-color: white;
-  border-width: 0;
+  border: none;
   box-shadow: rgba(50, 50, 93, 0.1) 0 0 0 1px inset,
     rgba(50, 50, 93, 0.1) 0 2px 1px 0, rgba(0, 0, 0, 0.07) 0 1px 1px 0;
-  box-sizing: border-box;
   color: black;
   cursor: pointer;
-  font-size: 100%;
-  margin-top: 0;
-  height: 60px;
-  line-height: 1.15;
-  margin: 0.1rem 1rem 1rem 1rem;
+  font-size: 0.85vw;
   outline: none;
   overflow: hidden;
-  padding: 0 25px;
   position: relative;
   text-align: center;
-  text-transform: none;
-  transform: translateZ(0);
-  transition: all 0.2s, box-shadow 0.08s ease-in;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
+  margin: 0 1%;
+  padding: 0.5% 0;
   width: 100%;
-}
-
-.button:disabled {
-  cursor: default;
+  transition: all 0.2s ease-in-out;
 }
 
 .button:focus {
   box-shadow: rgba(50, 50, 93, 0.1) 0 0 0 1px inset,
-    rgba(50, 50, 93, 0.2) 0 6px 15px 0, rgba(0, 0, 0, 0.1) 0 2px 2px 0,
-    rgba(4, 42, 63, 0.3) 0 0 0 4px;
+    rgba(50, 50, 93, 0.2) 0 3px 10px 0, rgba(0, 0, 0, 0.1) 0 2px 2px 0,
+    rgba(4, 42, 63, 0.3) 0 0 0 2px;
+  transition: all 0.2s ease-in-out;
 }
-
-.button-dropdown {
-  font-family: "BancoDoBrasil Textos";
-  backface-visibility: hidden;
-  background-color: white;
-  border-width: 0;
-  box-shadow: rgba(50, 50, 93, 0.1) 0 0 0 1px inset,
-    rgba(50, 50, 93, 0.1) 0 2px 1px 0, rgba(0, 0, 0, 0.07) 0 1px 1px 0;
-  box-sizing: border-box;
-  color: black;
-  cursor: pointer;
-  font-size: 100%;
-  margin-top: 0;
-  height: 20px;
-  line-height: 1.15;
-  margin: 0.1rem 0rem 2rem 0rem;
-  outline: none;
-  overflow: hidden;
-  padding: 0 25px;
-  position: relative;
-  text-align: center;
-  text-transform: none;
-  transform: translateZ(0);
-  transition: all 0.2s, box-shadow 0.08s ease-in;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  width: 100%;
-}
-
-.button-dropdown:disabled {
-  cursor: default;
-}
-
-.button-dropdown:focus {
-  box-shadow: rgba(50, 50, 93, 0.1) 0 0 0 1px inset,
-    rgba(50, 50, 93, 0.2) 0 6px 15px 0, rgba(0, 0, 0, 0.1) 0 2px 2px 0,
-    rgba(4, 42, 63, 0.3) 0 0 0 4px;
-}
-
 
 .graph-container {
+  margin: 5% 0.5% 0 0.5%;
+  position: relative;
   display: flex;
-  margin-top: 5.625rem;
-  width: 100%;
-  margin-left: 0.3125rem;
-  flex-wrap: wrap;
-}
-
-.lineplot-container {
-  width: 100%;
-  max-width: 84.375rem;
-  height: 100%;
-  max-height: 30rem;
-  margin: 0.625rem;
-  padding: 0.625rem;
-  
-  background-color: white;
-  box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
-}
-
-.spreadlineplot-container {
-  width: 100%;
-  max-width: 84.375rem;
-  height: 100%;
-  max-height: 30rem;
-  margin: 1.5rem 0.625rem 0.625rem 0.625rem;
-  padding: 0.625rem;
-  
-  background-color: white;
-  box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
+  flex-flow: column nowrap;
+  width: 72.5%;
 }
 
 .bar-lineplot-container {
-  width: 100%;
-  max-width: 84.375rem;
-  height: 100%;
-  max-height: 30rem;
-  margin: 0 0.625rem 0.625rem;
-  margin-bottom: 0;
-  padding: 0.625rem;
-
+  padding: 1%;
+  margin: 0 0 1% 0;
+  background-color: white;
+  box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
+}
+.spreadlineplot-container {
+  padding: 1%;
+  margin: 1% 0;
+  background-color: white;
+  box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
+}
+.lineplot-container {
+  padding: 1%;
+  margin: 1% 0;
   background-color: white;
   box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
 
-.pieplot-container {
-  width: 100%;
-  max-width: 28.75rem;
-  height: 100%;
-  max-height: 30rem;
-  margin-top: 1.5rem;
-  margin-left: 1.2rem;
-  padding: 0.625rem;
+.left-container {
+  margin: 5% 0.5% 0 0.5%;
+  display: flex;
+  justify-content: space-between;
+  flex-flow: column nowrap;
+  width: 22.5%;
+}
 
+.dropdown-container {
+  display: flex;
+  flex-flow: column nowrap;
+  padding: 1%;
+  height: 35%;
+  margin: 0 0 1% 0;
+  background-color: white;
+  box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
+}
+
+.button-dropdown {
+  font-family: 'BancoDoBrasil Titulos';
+  display: flex;
+  margin-top: auto;
+  border: none;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+  box-shadow: rgba(50, 50, 93, 0.1) 0 0 0 1px inset,
+    rgba(50, 50, 93, 0.1) 0 2px 1px 0, rgba(0, 0, 0, 0.07) 0 1px 1px 0;
+  color: black;
+  cursor: pointer;
+  font-size: 0.85vw;
+  padding: 2%;
+  width: 100%;
+}
+
+.pieplot-container {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1%;
+  height: 33%;
+  margin: 5% 0;
   background-color: white;
   box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
 
 .title-dropdown {
-  text-align: left;
-  margin-top: 1rem;
-  margin-bottom: 2.5rem;
-  color: black;
-  margin-left: 0.625rem;
-  margin-right: 0.625rem;
-  background-color: white;
-}
-
-.dropdown-container {
-  margin-left: 1.25rem !important;
-  margin-top: 6.25rem !important;
-  width: 100% !important;
-  max-width: 30rem !important;
-  height: 36rem !important;
-  color: black;
-  background-color: white;
-  text-align: center;
-
-  box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
+  padding: 0 2.5%;
+  color: rgb(0, 45, 75);
 }
 
 .dropdown-labels {
-  text-align: left;
-  color: black;
-  font-weight: bold;
-  float: left;
-  margin-top: 0.625rem;
-  margin-left: 1rem;
+  padding: 1% 2.5%;
+  color: rgb(0, 45, 75);
 }
 
 .dropdown {
-  width: 90% !important;
-  max-width: 27.5rem !important;
-  margin-right: 0.625rem !important;
-  margin-left: 0.9rem !important;
-  cursor: pointer;
-  color: black;
-  background-color: transparent;
-}
-
-.dropdown .Select-input > input {
-  line-height: 14px;
-}
-
-.dropdown .Select-control {
-  color: black;
-  background-color: white;
-  border-color: #f1f1f1;
-  border-radius: 0;
-  border-width: 0.125rem;
-  padding-top: 0.325rem;
-}
-
-.dropdown .Select-menu-outer {
-  background-color: white;
-}
-
-.dropdown .Select-value {
-  background-color: rgb(4, 61, 100);
-  border-width: 0 0.8rem 0 0.2rem;
-  text-align: center;
-  border-color: rgb(4, 61, 100);
-  border-radius: 0.5rem;
-  color: white;
-  font-size: 0.875rem;
-  display: inline-block;
-}
-
-.dropdown .VirtualizedSelectFocusedOption {
-  background-color: rgb(4, 61, 100);
-  color: white;
-  overflow: visible;
-}
-
-.dropdown .VirtualizedSelectOption {
-  font-size: 0.875rem;
-}
-
-#bank-dropdown {
-  width: 100%;
-  display: inline-block;
-  overflow-y: auto;
-  height: 100%;
-  max-height: 18rem;
-}
-
-.table{
-  overflow-x: auto;
-  font-family: "BancoDoBrasil Textos";
-  margin-left: 1.25rem ;
-  margin-top: 1rem ;
-  width: 100% ;
-  max-width: 30rem ;
-  height: 100% ;
-  max-height: 32.5rem;
-  box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
-}
-
-.main-container {
   display: flex;
+  flex-flow: row;
+  width: 100%;
+  padding: 1%;
+  cursor: pointer;
+}
+
+.table-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-flow: column nowrap;
+  margin: 1% 0;
+  height: auto;
+  width: 100%;
+  box-shadow: 0.125rem 0.125rem 0.3125rem 0rem lightgray;
 }
